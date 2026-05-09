@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C-IDE Practice Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header class="ide-header">
+        <div class="menu-bar">
+            <div class="brand">C-IDE</div>
+
+            <div class="menu-item dropdown">
+                <span>Generate</span>
+                <div class="dropdown-content">
+                    <a href="#" id="dailyMenuBtn">Daily Set (10)</a>
+                    <a href="#" id="aiGenerateMenuBtn">AI: New Problems</a>
+                </div>
+            </div>
+            <div class="menu-item category-select-container">
+                <select id="categoryFilter" class="menu-select">
+                    <option value="All">All Categories</option>
+                    <option value="If/Else">If/Else</option>
+                    <option value="For Loop">For Loop</option>
+                    <option value="While Loop">While Loop</option>
+                    <option value="Switch">Switch</option>
+                    <option value="Nested Loops">Nested Loops</option>
+                    <option value="Bitwise Operations">Bitwise Operations</option>
+                    <option value="Pointers & Memory">Pointers & Memory</option>
+                    <option value="Embedded Logic">Embedded Logic</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-layout">
+        <!-- Left Pane: Problem Library -->
+        <aside class="sidebar">
+            <main id="dashboard"></main>
+        </aside>
+
+        <!-- Right Pane: Editor & Output & Debugger -->
+        <main class="ide-container">
+            <div class="editor-column">
+                <div class="editor-section">
+                    <h2><span class="icon">💻</span> Code Editor</h2>
+                    <textarea id="code-editor" spellcheck="false" placeholder="// Write your C code here...&#10;#include <stdio.h>&#10;&#10;int main() {&#10;    printf(&quot;Hello World!\\n&quot;);&#10;    return 0;&#10;}"></textarea>
+                    <button id="runBtn" class="btn btn-primary">Run Code</button>
+                </div>
+                <div class="output-section">
+                    <h2><span class="icon">🖥️</span> Console Output</h2>
+                    <pre id="console-output">Waiting for execution...</pre>
+                </div>
+            </div>
+            
+            <div class="debugger-column">
+                <div class="debugger-section">
+                    <h2><span class="icon">🐛</span> Debugger</h2>
+                    <div class="debugger-panel">
+                        <h3>Variables</h3>
+                        <ul class="debug-list">
+                            <li><span class="var-type">int</span> <span class="var-name">i</span> = <span class="var-val">0</span></li>
+                            <li><span class="var-type">char*</span> <span class="var-name">str</span> = <span class="var-val">"hello"</span></li>
+                        </ul>
+                    </div>
+                    <div class="debugger-panel">
+                        <h3>Call Stack</h3>
+                        <ul class="debug-list">
+                            <li>main() : line 4</li>
+                        </ul>
+                    </div>
+                    <div class="debugger-panel">
+                        <h3>Watch</h3>
+                        <p class="watch-empty">No expressions to watch</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Floating Chat Widget -->
+    <div id="chat-widget" class="chat-widget collapsed">
+        <div class="chat-header" id="chat-header">
+            <h3><span class="icon">🤖</span> AI Assistant</h3>
+            <span class="toggle-icon">▲</span>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <div class="chat-message ai-msg">Hi! I'm your AI C-tutor. How can I help you debug today?</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Ask a question about your code...">
+            <button id="chat-send">Send</button>
+        </div>
+    </div>
+
+    <!-- Setup Required Overlay -->
+    <div id="setup-overlay" class="setup-overlay hidden">
+        <div class="setup-modal">
+            <h2>⚠️ GCC Compiler Not Found</h2>
+            <p>This C Practice Dashboard runs code locally on your machine. We could not detect the GCC compiler in your system PATH.</p>
+            <p>Please install a C compiler to unlock the "Run Code" feature:</p>
+            <div class="setup-instructions">
+                <div class="os-instruction">
+                    <strong>🪟 Windows:</strong> Install <a href="https://github.com/skeeto/w64devkit/releases" target="_blank">w64devkit</a> or <a href="https://www.msys2.org/" target="_blank">MinGW-w64</a>. Make sure the <code>bin</code> folder is added to your PATH.
+                </div>
+                <div class="os-instruction">
+                    <strong>🍎 Mac:</strong> Open terminal and run <code>xcode-select --install</code>.
+                </div>
+                <div class="os-instruction">
+                    <strong>🐧 Linux:</strong> Run <code>sudo apt install build-essential</code>.
+                </div>
+            </div>
+            <p><em>After installing, please restart the application.</em></p>
+        </div>
+    </div>
+
+    <!-- Footer Badge -->
+    <div id="compiler-badge" class="compiler-badge hidden">
+        🟢 Compiler Ready
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

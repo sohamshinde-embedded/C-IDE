@@ -1,0 +1,533 @@
+[
+  {
+    "id": 1,
+    "title": "Bounding Box Collision",
+    "category": "If/Else",
+    "difficulty": "Intermediate",
+    "statement": "Given two 2D rectangles (x, y, w, h), determine if they intersect or overlap. A standard game dev / industrial graphics problem.",
+    "hint": "Check if one rectangle is completely to the left, right, top, or bottom of the other.",
+    "output": "Input: R1(0,0,2,2) R2(1,1,2,2) -> Output: Overlap"
+  },
+  {
+    "id": 2,
+    "title": "TCP State Transition",
+    "category": "If/Else",
+    "difficulty": "Advanced",
+    "statement": "Simulate a simplified TCP state machine. Given current state (LISTEN, SYN_RCVD, ESTABLISHED) and event (RCV_SYN, RCV_ACK), output the next state.",
+    "hint": "Use a series of if/else to map (State, Event) to NewState.",
+    "output": "Input: LISTEN, RCV_SYN -> Output: SYN_RCVD"
+  },
+  {
+    "id": 3,
+    "title": "Sensor Threshold Alarm",
+    "category": "If/Else",
+    "difficulty": "Beginner",
+    "statement": "An IoT temperature sensor reads a float. If Temp > 80, trigger HIGH_ALARM. If Temp < 0, trigger LOW_ALARM. If Temp between 70-80, trigger WARNING. Else NORMAL.",
+    "hint": "Use if-else if-else chain.",
+    "output": "Input: 75.5 -> Output: WARNING"
+  },
+  {
+    "id": 4,
+    "title": "Valid IPv4 Address",
+    "category": "If/Else",
+    "difficulty": "Intermediate",
+    "statement": "Given four integers A, B, C, D representing an IP (A.B.C.D), verify if it is a valid IPv4 address (0-255 each) and not a loopback (127.x.x.x) or multicast (>=224.x.x.x).",
+    "hint": "Check ranges for A, B, C, D and apply specific exclusions on A.",
+    "output": "Input: 192 168 1 1 -> Output: Valid Unicast IPv4"
+  },
+  {
+    "id": 5,
+    "title": "Bisection Root Finding Step",
+    "category": "If/Else",
+    "difficulty": "Advanced",
+    "statement": "In the bisection method, given bounds [a, b] and mid = (a+b)/2. If f(mid) == 0, return mid. If f(a)*f(mid) < 0, the root is in [a, mid], so update b = mid. Else a = mid.",
+    "hint": "Use multiplication of function evaluations to determine sign changes.",
+    "output": "Input: f(a)=-2, f(mid)=3 -> Output: New bounds [a, mid]"
+  },
+  {
+    "id": 6,
+    "title": "Two Sum (Sorted)",
+    "category": "While Loop",
+    "difficulty": "Intermediate",
+    "statement": "Given a sorted array of integers and a target sum, find two numbers that add up to the target using a two-pointer approach.",
+    "hint": "Initialize left = 0, right = n-1. Use a while(left < right) loop.",
+    "output": "Input: [2,7,11,15], target=9 -> Output: 2, 7"
+  },
+  {
+    "id": 7,
+    "title": "Binary Search",
+    "category": "While Loop",
+    "difficulty": "Intermediate",
+    "statement": "Implement standard binary search on a sorted array. Return the index of the target or -1 if not found.",
+    "hint": "Use while(low <= high) and calculate mid. Adjust low or high based on comparison.",
+    "output": "Input: [1,3,5,7,9], target=5 -> Output: Index 2"
+  },
+  {
+    "id": 8,
+    "title": "Fast Inverse Square Root (Simulation)",
+    "category": "While Loop",
+    "difficulty": "Advanced",
+    "statement": "Simulate one iteration of Newton's method used in the Quake III Fast Inverse Square root algorithm to refine an initial guess for 1/sqrt(x).",
+    "hint": "y = y * (1.5 - (x2 * y * y))",
+    "output": "Input: x=4, guess=0.5 -> Output: Refined guess"
+  },
+  {
+    "id": 9,
+    "title": "Greatest Common Divisor (Euclidean)",
+    "category": "While Loop",
+    "difficulty": "Beginner",
+    "statement": "Find the GCD of two numbers using the Euclidean algorithm.",
+    "hint": "while(b != 0) { temp = b; b = a % b; a = temp; }",
+    "output": "Input: 48, 18 -> Output: 6"
+  },
+  {
+    "id": 10,
+    "title": "Linked List Cycle Detection (Floyd's)",
+    "category": "While Loop",
+    "difficulty": "Advanced",
+    "statement": "Simulate cycle detection using slow and fast pointers. The loop runs while fast and fast->next are not NULL.",
+    "hint": "slow advances 1 step, fast advances 2 steps. If they meet, cycle exists.",
+    "output": "Input: 1->2->3->2... -> Output: Cycle Detected"
+  },
+  {
+    "id": 11,
+    "title": "Matrix Multiplication",
+    "category": "Nested Loops",
+    "difficulty": "Intermediate",
+    "statement": "Multiply two matrices A (m x n) and B (n x p) to produce C (m x p).",
+    "hint": "Requires 3 nested loops: i (rows of A), j (cols of B), k (inner dimension).",
+    "output": "Input: A[2][2], B[2][2] -> Output: C[2][2]"
+  },
+  {
+    "id": 12,
+    "title": "Bubble Sort Optimization",
+    "category": "Nested Loops",
+    "difficulty": "Intermediate",
+    "statement": "Implement Bubble Sort but add a flag to break early if no swaps were made in the inner loop (early termination).",
+    "hint": "Outer loop tracks passes, inner loop compares adjacents. Set swapped = false inside outer.",
+    "output": "Input: [5,1,4,2,8] -> Output: [1,2,4,5,8]"
+  },
+  {
+    "id": 13,
+    "title": "Image Convolution (3x3 Filter)",
+    "category": "Nested Loops",
+    "difficulty": "Advanced",
+    "statement": "Apply a 3x3 convolution matrix (like a Sobel edge detector) over a 2D array of pixels.",
+    "hint": "Requires nested loops over the image pixels, and nested loops over the 3x3 kernel.",
+    "output": "Input: 5x5 image, 3x3 kernel -> Output: 3x3 convolved image"
+  },
+  {
+    "id": 14,
+    "title": "Floyd-Warshall All-Pairs Shortest Path",
+    "category": "Nested Loops",
+    "difficulty": "Advanced",
+    "statement": "Find the shortest paths between all pairs of vertices in a weighted graph.",
+    "hint": "Three nested loops: k (intermediate node), i (source node), j (destination node).",
+    "output": "Input: Distance Matrix -> Output: Shortest Path Matrix"
+  },
+  {
+    "id": 15,
+    "title": "State Machine Parser",
+    "category": "Switch",
+    "difficulty": "Intermediate",
+    "statement": "Parse a simple command string (e.g., 'G', 'S', 'R') using a switch inside a loop to call respective functions (Go, Stop, Reverse).",
+    "hint": "switch(char) { case 'G': ... case 'S': ... }",
+    "output": "Input: 'GSR' -> Output: Go() Stop() Reverse()"
+  },
+  {
+    "id": 16,
+    "title": "ALU Opcode Decoder",
+    "category": "Switch",
+    "difficulty": "Intermediate",
+    "statement": "Simulate an Arithmetic Logic Unit. Given an opcode (0=ADD, 1=SUB, 2=AND, 3=OR) and two operands, perform the operation.",
+    "hint": "Switch on opcode to select the mathematical operation.",
+    "output": "Input: Opcode 2, A=5, B=3 -> Output: 1 (5 & 3)"
+  },
+  {
+    "id": 17,
+    "title": "Hardware Interrupt Vector",
+    "category": "Switch",
+    "difficulty": "Advanced",
+    "statement": "Simulate an embedded interrupt vector table. Switch on IRQ number (0-15) and dispatch to the correct simulated ISR.",
+    "hint": "switch(irq) { case 0: handle_timer(); break; case 1: handle_gpio(); ... }",
+    "output": "Input: IRQ=1 -> Output: GPIO ISR executed"
+  },
+  {
+    "id": 18,
+    "title": "Fibonacci Sequence",
+    "category": "For Loop",
+    "difficulty": "Beginner",
+    "statement": "Generate the first N numbers of the Fibonacci sequence.",
+    "hint": "Use a for loop maintaining variables for the previous two numbers.",
+    "output": "Input: N=5 -> Output: 0, 1, 1, 2, 3"
+  },
+  {
+    "id": 19,
+    "title": "Array Reversal (In-Place)",
+    "category": "For Loop",
+    "difficulty": "Beginner",
+    "statement": "Reverse an array in-place without using a second array.",
+    "hint": "Loop from i=0 to n/2, swap arr[i] with arr[n-1-i].",
+    "output": "Input: [1,2,3,4] -> Output: [4,3,2,1]"
+  },
+  {
+    "id": 20,
+    "title": "CRC-32 Checksum Simulation",
+    "category": "For Loop",
+    "difficulty": "Advanced",
+    "statement": "Simulate computing a simple CRC checksum over an array of bytes using a polynomial division (XOR) loop.",
+    "hint": "For each bit in the byte, if MSB is 1, shift and XOR with polynomial.",
+    "output": "Input: Data=[0x31, 0x32] -> Output: Checksum"
+  },
+  {
+    "id": 21,
+    "title": "Set, Clear, and Toggle Bit",
+    "category": "Bitwise Operations",
+    "difficulty": "Beginner",
+    "statement": "Write functions to set, clear, and toggle the nth bit of a given integer.",
+    "hint": "Set: num | (1 << n). Clear: num & ~(1 << n). Toggle: num ^ (1 << n).",
+    "output": "Input: num=5, bit=1 -> Output: Set=7, Clear=5, Toggle=7"
+  },
+  {
+    "id": 22,
+    "title": "Check if Power of Two",
+    "category": "Bitwise Operations",
+    "difficulty": "Intermediate",
+    "statement": "Determine if a given positive integer is a power of 2 using only bitwise operators.",
+    "hint": "Use (n & (n - 1)) == 0. A power of 2 has exactly one bit set.",
+    "output": "Input: 16 -> Output: True"
+  },
+  {
+    "id": 23,
+    "title": "Count Set Bits (Brian Kernighan's)",
+    "category": "Bitwise Operations",
+    "difficulty": "Advanced",
+    "statement": "Count the number of 1s in the binary representation of an integer in O(set bits) time.",
+    "hint": "While n > 0, do n = n & (n - 1) and increment count.",
+    "output": "Input: 11 (1011) -> Output: 3"
+  },
+  {
+    "id": 24,
+    "title": "Find Missing Number",
+    "category": "Bitwise Operations",
+    "difficulty": "Intermediate",
+    "statement": "Given an array containing n distinct numbers taken from 0, 1, 2, ..., n, find the one that is missing using XOR.",
+    "hint": "XOR all array elements and all numbers from 0 to n. The remaining value is the missing number.",
+    "output": "Input: [3,0,1] -> Output: 2"
+  },
+  {
+    "id": 25,
+    "title": "Pointer to Array Elements",
+    "category": "Pointers & Memory",
+    "difficulty": "Beginner",
+    "statement": "Iterate over an array of integers using a pointer instead of array indexing (arr[i]).",
+    "hint": "Initialize int *ptr = arr. Use *(ptr + i) to access elements.",
+    "output": "Input: [10,20,30] -> Output: 10 20 30"
+  },
+  {
+    "id": 26,
+    "title": "Swap Two Numbers using Pointers",
+    "category": "Pointers & Memory",
+    "difficulty": "Beginner",
+    "statement": "Write a function swap(int *a, int *b) that swaps the values of the two variables.",
+    "hint": "Dereference pointers to exchange values: int temp = *a; *a = *b; *b = temp;",
+    "output": "Input: a=5, b=10 -> Output: a=10, b=5"
+  },
+  {
+    "id": 27,
+    "title": "Dynamic Memory Allocation",
+    "category": "Pointers & Memory",
+    "difficulty": "Intermediate",
+    "statement": "Write a program that asks the user for array size N, allocates memory using malloc, populates it, and frees it.",
+    "hint": "Use int *arr = (int *)malloc(N * sizeof(int)). Don't forget free(arr).",
+    "output": "Input: N=3 -> Output: Memory allocated and freed."
+  },
+  {
+    "id": 28,
+    "title": "Function Pointers Array",
+    "category": "Pointers & Memory",
+    "difficulty": "Advanced",
+    "statement": "Create an array of function pointers to represent a simple dispatch table (e.g., adding, subtracting).",
+    "hint": "Declaration: int (*ops[])(int, int) = {add, sub}; Call: ops[0](5, 3);",
+    "output": "Input: Ops[0](5,3) -> Output: 8"
+  },
+  {
+    "id": 29,
+    "title": "Reverse Linked List",
+    "category": "Pointers & Memory",
+    "difficulty": "Advanced",
+    "statement": "Reverse a singly linked list iteratively by manipulating the next pointers.",
+    "hint": "Maintain prev, curr, and next pointers. curr->next = prev.",
+    "output": "Input: 1->2->3 -> Output: 3->2->1"
+  },
+  {
+    "id": 30,
+    "title": "Endianness Checker",
+    "category": "Pointers & Memory",
+    "difficulty": "Intermediate",
+    "statement": "Write a C program to determine if the underlying architecture is Little Endian or Big Endian.",
+    "hint": "Create an unsigned int i = 1. Cast its address to a char pointer and check the first byte.",
+    "output": "Input: Run on x86 -> Output: Little Endian"
+  },
+  {
+    "id": 31,
+    "title": "Extract RGB from Hex (Bitmasking)",
+    "category": "Bitwise Operations",
+    "difficulty": "Intermediate",
+    "statement": "Given a 24-bit color hex code (e.g., 0xFF5733), extract the Red, Green, and Blue components using bit shifts and masks.",
+    "hint": "Red = (hex >> 16) & 0xFF. Green = (hex >> 8) & 0xFF. Blue = hex & 0xFF.",
+    "output": "Input: 0xFF5733 -> Output: R=255, G=87, B=51"
+  },
+  {
+    "id": 32,
+    "title": "Check Substring",
+    "category": "Nested Loops",
+    "difficulty": "Intermediate",
+    "statement": "Implement the strstr() function from scratch to find the first occurrence of a substring within a main string.",
+    "hint": "Outer loop iterates through main string, inner loop checks characters of the substring.",
+    "output": "Input: 'hello world', 'world' -> Output: Found at index 6"
+  },
+  {
+    "id": 33,
+    "title": "Kadane's Algorithm",
+    "category": "For Loop",
+    "difficulty": "Advanced",
+    "statement": "Find the contiguous subarray with the largest sum using a single pass O(n) algorithm.",
+    "hint": "Keep track of max_so_far and current_max. If current_max drops below 0, reset it.",
+    "output": "Input: [-2,1,-3,4,-1,2,1,-5,4] -> Output: 6 ([4,-1,2,1])"
+  },
+  {
+    "id": 34,
+    "title": "Duff's Device",
+    "category": "Switch",
+    "difficulty": "Advanced",
+    "statement": "Implement Duff's device to manually unroll a loop for copying an array of bytes efficiently.",
+    "hint": "Combine a switch statement and a while loop to jump into the middle of the loop block.",
+    "output": "Input: Copy 20 bytes -> Output: Array copied with unrolled loop"
+  },
+  {
+    "id": 35,
+    "title": "State Machine with Switch",
+    "category": "Switch",
+    "difficulty": "Advanced",
+    "statement": "Implement a vending machine state machine. States: IDLE, COIN_INSERTED, DISPENSE, RETURN_CHANGE.",
+    "hint": "Use a switch(state) inside an infinite loop to handle state transitions.",
+    "output": "Input: Insert Coin, Select Item -> Output: Dispense Item"
+  },
+  {
+    "id": 36,
+    "title": "Traffic Light",
+    "category": "Switch",
+    "difficulty": "Beginner",
+    "statement": "Given R, Y, or G, print 'Stop', 'Wait', 'Go'.",
+    "hint": "switch(char) { case 'R': ... }",
+    "output": "Input: 'R' -> Output: Stop"
+  },
+  {
+    "id": 37,
+    "title": "Vowel Switch",
+    "category": "Switch",
+    "difficulty": "Beginner",
+    "statement": "Check if char is vowel using fallthrough in switch.",
+    "hint": "case 'a': case 'e': ... printf('Vowel');",
+    "output": "Input: 'a' -> Output: Vowel"
+  },
+  {
+    "id": 38,
+    "title": "Menu Driven DB",
+    "category": "Switch",
+    "difficulty": "Intermediate",
+    "statement": "Create a simple CRUD menu (1: Add, 2: Read, 3: Update, 4: Delete).",
+    "hint": "switch(choice)",
+    "output": "Input: 2 -> Output: Read selected"
+  },
+  {
+    "id": 39,
+    "title": "HTTP Status Codes",
+    "category": "Switch",
+    "difficulty": "Intermediate",
+    "statement": "Given status code (200, 404, 500), print the meaning.",
+    "hint": "switch(code)",
+    "output": "Input: 404 -> Output: Not Found"
+  },
+  {
+    "id": 40,
+    "title": "Sum of N",
+    "category": "For Loop",
+    "difficulty": "Beginner",
+    "statement": "Find sum of first N natural numbers using a loop.",
+    "hint": "for(int i=1; i<=n; i++) sum += i;",
+    "output": "Input: 5 -> Output: 15"
+  },
+  {
+    "id": 41,
+    "title": "Array Minimum",
+    "category": "For Loop",
+    "difficulty": "Beginner",
+    "statement": "Find the minimum element in an array.",
+    "hint": "Initialize min = arr[0], loop through rest.",
+    "output": "Input: [4,1,5] -> Output: 1"
+  },
+  {
+    "id": 42,
+    "title": "Linear Search",
+    "category": "For Loop",
+    "difficulty": "Beginner",
+    "statement": "Find index of an element in an array.",
+    "hint": "Loop and check arr[i] == target.",
+    "output": "Input: [10,20], target=20 -> Output: 1"
+  },
+  {
+    "id": 43,
+    "title": "Collatz Sequence",
+    "category": "For Loop",
+    "difficulty": "Intermediate",
+    "statement": "Print Collatz sequence up to 10 iterations for a number.",
+    "hint": "if even: n/2, if odd: 3n+1.",
+    "output": "Input: 6 -> Output: 6, 3, 10, 5..."
+  },
+  {
+    "id": 44,
+    "title": "Count Digits",
+    "category": "While Loop",
+    "difficulty": "Beginner",
+    "statement": "Count number of digits in an integer.",
+    "hint": "while(n!=0) { n/=10; count++; }",
+    "output": "Input: 1234 -> Output: 4"
+  },
+  {
+    "id": 45,
+    "title": "Palindrome Number",
+    "category": "While Loop",
+    "difficulty": "Intermediate",
+    "statement": "Check if a number is palindrome.",
+    "hint": "Reverse it using while loop, then compare with original.",
+    "output": "Input: 121 -> Output: Palindrome"
+  },
+  {
+    "id": 46,
+    "title": "Armstrong Number",
+    "category": "While Loop",
+    "difficulty": "Intermediate",
+    "statement": "Check if a number is an Armstrong number.",
+    "hint": "Sum of cubes of digits equals original number.",
+    "output": "Input: 153 -> Output: True"
+  },
+  {
+    "id": 47,
+    "title": "Number Pyramid",
+    "category": "Nested Loops",
+    "difficulty": "Advanced",
+    "statement": "Print a pyramid of numbers (1, 12, 123).",
+    "hint": "Outer loop for rows, inner for numbers.",
+    "output": "Input: 3 -> Output: 1 \n 1 2 \n 1 2 3"
+  },
+  {
+    "id": 48,
+    "title": "Pascal's Triangle",
+    "category": "Nested Loops",
+    "difficulty": "Advanced",
+    "statement": "Print first N rows of Pascal's triangle.",
+    "hint": "Use binomial coefficient formula inside nested loops.",
+    "output": "Input: 3 -> Output: 1 \n 1 1 \n 1 2 1"
+  },
+  {
+    "id": 49,
+    "title": "Matrix Transpose",
+    "category": "Nested Loops",
+    "difficulty": "Intermediate",
+    "statement": "Transpose a 2D matrix.",
+    "hint": "Swap arr[i][j] with arr[j][i].",
+    "output": "Input: [[1,2],[3,4]] -> Output: [[1,3],[2,4]]"
+  },
+  {
+    "id": 50,
+    "title": "Matrix Addition",
+    "category": "Nested Loops",
+    "difficulty": "Beginner",
+    "statement": "Add two matrices.",
+    "hint": "res[i][j] = a[i][j] + b[i][j]",
+    "output": "Input: A, B -> Output: A+B"
+  },
+  {
+    "id": 51,
+    "title": "Find Duplicates",
+    "category": "Nested Loops",
+    "difficulty": "Intermediate",
+    "statement": "Find duplicate elements in an array using two loops (O(N^2)).",
+    "hint": "For i to n, For j=i+1 to n, if arr[i]==arr[j].",
+    "output": "Input: [1,2,3,2] -> Output: 2"
+  },
+  {
+    "id": 52,
+    "title": "Odd or Even (Bitwise)",
+    "category": "Bitwise Operations",
+    "difficulty": "Beginner",
+    "statement": "Check if even or odd using bitwise AND.",
+    "hint": "if (n & 1) odd else even.",
+    "output": "Input: 5 -> Output: Odd"
+  },
+  {
+    "id": 53,
+    "title": "Multiply by 2",
+    "category": "Bitwise Operations",
+    "difficulty": "Beginner",
+    "statement": "Multiply a number by 2 using bitwise shifts.",
+    "hint": "n << 1",
+    "output": "Input: 5 -> Output: 10"
+  },
+  {
+    "id": 54,
+    "title": "Divide by 2",
+    "category": "Bitwise Operations",
+    "difficulty": "Beginner",
+    "statement": "Divide a number by 2 using bitwise shifts.",
+    "hint": "n >> 1",
+    "output": "Input: 10 -> Output: 5"
+  },
+  {
+    "id": 55,
+    "title": "Swap using XOR",
+    "category": "Bitwise Operations",
+    "difficulty": "Intermediate",
+    "statement": "Swap two integers using XOR without a temp variable.",
+    "hint": "a^=b; b^=a; a^=b;",
+    "output": "Input: a=5, b=10 -> Output: a=10, b=5"
+  },
+  {
+    "id": 56,
+    "title": "String Length (Pointers)",
+    "category": "Pointers & Memory",
+    "difficulty": "Beginner",
+    "statement": "Find length of string using a pointer.",
+    "hint": "while(*ptr != '\u0000') ptr++;",
+    "output": "Input: 'hello' -> Output: 5"
+  },
+  {
+    "id": 57,
+    "title": "Copy String",
+    "category": "Pointers & Memory",
+    "difficulty": "Intermediate",
+    "statement": "Copy one string to another using pointers.",
+    "hint": "while(*src) { *dest = *src; src++; dest++; }",
+    "output": "Input: src='abc' -> Output: dest='abc'"
+  },
+  {
+    "id": 58,
+    "title": "Dynamic Array Realloc",
+    "category": "Pointers & Memory",
+    "difficulty": "Advanced",
+    "statement": "Allocate array of size N, then realloc to size 2N.",
+    "hint": "arr = realloc(arr, 2*N*sizeof(int))",
+    "output": "Input: N=2 -> Output: Array doubled"
+  },
+  {
+    "id": 59,
+    "title": "Pointer to Pointer",
+    "category": "Pointers & Memory",
+    "difficulty": "Advanced",
+    "statement": "Modify a pointer's address using a pointer to a pointer.",
+    "hint": "void change(int **p) { *p = new_addr; }",
+    "output": "Input: ptr -> Output: ptr points to new address"
+  }
+]

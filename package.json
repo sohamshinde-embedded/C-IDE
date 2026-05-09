@@ -1,0 +1,45 @@
+{
+  "name": "c-practice-dashboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "electron-main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js",
+    "electron": "electron .",
+    "build": "electron-builder build --win"
+  },
+  "build": {
+    "appId": "com.cpractice.dashboard",
+    "productName": "C Practice Dashboard",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "server.js",
+      "electron-main.js",
+      "problems.json",
+      "public/**/*"
+    ],
+    "win": {
+      "target": "portable"
+    }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@google/genai": "^1.50.1",
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "electron-store": "^11.0.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.0.0",
+    "electron": "^42.0.1",
+    "electron-builder": "^26.8.1"
+  }
+}
