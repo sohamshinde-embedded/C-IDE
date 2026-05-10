@@ -149,7 +149,8 @@ aiGenerateBtn.addEventListener('click', async () => {
             const filtered = allProblems.filter(p => p.category === category);
             renderProblems(filtered);
         } else {
-            alert('Failed to generate problems. Check backend logs.');
+            const data = await response.json();
+            alert('Failed to generate problems: ' + (data.error || 'Check backend logs.'));
         }
     } catch (error) {
         console.error("Generate error:", error);
@@ -160,9 +161,55 @@ aiGenerateBtn.addEventListener('click', async () => {
     aiGenerateBtn.disabled = false;
 });
 
+// Settings Modal Logic
+window.saveApiKey = async function() {
+    const key = document.getElementById('apiKeyInput').value;
+    if (!key) return alert("Please enter a key!");
+
+    try {
+        const response = await fetch('/api/settings/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: key })
+        });
+        
+        if (response.ok) {
+            alert("API Key Saved Successfully! AI features are now unlocked.");
+            closeSettings();
+            document.getElementById('apiKeyInput').value = ''; // Clear for security
+            checkApiKeyStatus(); // Refresh placeholder
+        } else {
+            const data = await response.json();
+            alert("Error saving API Key: " + (data.error || "Check backend logs."));
+        }
+    } catch (err) {
+        alert("Failed to connect to backend to save API key.");
+    }
+};
+
+window.closeSettings = function() {
+    document.getElementById('settings-overlay').classList.add('hidden');
+};
+
 // Initialize
 fetchProblems();
 checkCompiler();
+checkApiKeyStatus();
+
+async function checkApiKeyStatus() {
+    try {
+        const response = await fetch('/api/settings/status');
+        const data = await response.json();
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        if (data.hasKey) {
+            apiKeyInput.placeholder = "Key is set (••••••••••••)";
+        } else {
+            apiKeyInput.placeholder = "AIzaSy...";
+        }
+    } catch (error) {
+        console.error("Failed to check API key status:", error);
+    }
+}
 
 // Check Compiler Status
 async function checkCompiler() {

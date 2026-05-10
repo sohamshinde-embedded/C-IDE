@@ -4,10 +4,8 @@
   "description": "",
   "main": "electron-main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "electron": "electron .",
-    "build": "electron-builder build --win"
+    "start": "electron .",
+    "build": "electron-packager . 'EmbeddedLabs-IDE' --platform=win32 --arch=x64 --out=release-builds --overwrite"
   },
   "build": {
     "appId": "com.cpractice.dashboard",

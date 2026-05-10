@@ -22,6 +22,9 @@
                     <a href="#" id="aiGenerateMenuBtn">AI: New Problems</a>
                 </div>
             </div>
+            <div class="menu-item" onclick="document.getElementById('settings-overlay').classList.remove('hidden')">
+                <span>⚙️ Settings</span>
+            </div>
             <div class="menu-item category-select-container">
                 <select id="categoryFilter" class="menu-select">
                     <option value="All">All Categories</option>
@@ -116,6 +119,22 @@
                 </div>
             </div>
             <p><em>After installing, please restart the application.</em></p>
+        </div>
+    </div>
+
+    <!-- AI Settings Overlay -->
+    <div id="settings-overlay" class="setup-overlay hidden">
+        <div class="setup-modal">
+            <h2>⚙️ AI Settings</h2>
+            <p>Enter your Google Gemini API key to enable problem generation and the AI Assistant.</p>
+            <div style="margin: 20px 0;">
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." style="width: 100%; padding: 10px; background: #1e1e1e; color: #fff; border: 1px solid #444; border-radius: 4px; font-family: 'JetBrains Mono', monospace;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveApiKey()" class="btn btn-primary">Save & Connect</button>
+                <button onclick="closeSettings()" class="btn" style="background: #444; color: white;">Cancel</button>
+            </div>
+            <p style="font-size: 12px; margin-top: 15px; color: #aaa;">Don't have one? <a href="https://aistudio.google.com/" target="_blank" style="color: #4daafc;">Get a free API key from Google AI Studio</a></p>
         </div>
     </div>
 

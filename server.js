@@ -16,6 +16,41 @@ app.use(express.json()); // Parse JSON requests
 app.use(express.static(path.join(__dirname, 'public'))); // Serve frontend files from a 'public' folder
 const fs = require('fs');
 
+// Initialize the local settings vault
+let store = {
+    data: {},
+    get(key) { return this.data[key]; },
+    set(key, val) { this.data[key] = val; }
+};
+
+// Use dynamic import for electron-store (ESM)
+(async () => {
+    try {
+        const { default: Store } = await import('electron-store');
+        store = new Store();
+        console.log("Store initialized successfully.");
+    } catch (e) {
+        console.warn("electron-store could not be initialized (standalone node environment). Using memory fallback.");
+    }
+})();
+
+// Route to securely save the user's API Key
+app.post('/api/settings/save', (req, res) => {
+    const { apiKey } = req.body;
+    if (apiKey) {
+        store.set('gemini_api_key', apiKey);
+        res.json({ success: true, message: "API Key saved securely." });
+    } else {
+        res.status(400).json({ error: "No API key provided." });
+    }
+});
+
+// Route to check if a key exists
+app.get('/api/settings/status', (req, res) => {
+    const existingKey = store.get('gemini_api_key');
+    res.json({ hasKey: !!existingKey });
+});
+
 // Read external problems using require so Vercel includes it automatically
 let externalProblems = [];
 try {
@@ -36,7 +71,6 @@ const problems = [
     { id: 106, title: 'Vowel or Consonant', category: 'If/Else', difficulty: 'Beginner', statement: 'Check if an alphabet is a vowel or consonant.', hint: 'Check against a, e, i, o, u.', output: 'Input: e -> Output: Vowel' },
     { id: 107, title: 'Grade Calculator', category: 'If/Else', difficulty: 'Intermediate', statement: 'Calculate grade (A, B, C, D, F) based on percentage.', hint: 'Use if-else if ladder based on score ranges.', output: 'Input: 85 -> Output: Grade B' },
     { id: 108, title: 'Alphabet Checker', category: 'If/Else', difficulty: 'Beginner', statement: 'Check if a character is an alphabet or not.', hint: 'Compare ASCII ranges or use isalpha().', output: 'Input: 7 -> Output: Not an alphabet' },
-    { id: 109, title: 'Uppercase or Lowercase', category: 'If/Else', difficulty: 'Beginner', statement: 'Check if an alphabet is uppercase or lowercase.', hint: 'Compare with A-Z and a-z.', output: 'Input: G -> Output: Uppercase' },
     { id: 110, title: 'Triangle Validity', category: 'If/Else', difficulty: 'Intermediate', statement: 'Check if a triangle is valid given its three angles.', hint: 'Sum of angles must be 180 and all angles > 0.', output: 'Input: 60 60 60 -> Output: Valid' },
     { id: 111, title: 'Triangle Type', category: 'If/Else', difficulty: 'Intermediate', statement: 'Check type of triangle given its three sides.', hint: 'Equilateral (all equal), Isosceles (two equal), Scalene (none equal).', output: 'Input: 3 3 5 -> Output: Isosceles' },
     { id: 112, title: 'Profit or Loss', category: 'If/Else', difficulty: 'Intermediate', statement: 'Calculate profit or loss given cost price and selling price.', hint: 'If SP > CP it\'s profit, else loss.', output: 'Input: CP=50 SP=70 -> Output: Profit of 20' },
@@ -95,12 +129,17 @@ app.get('/api/daily', (req, res) => {
     res.json(selected);
 });
 
-// Initialize Gemini (Moved up so /api/run can use it)
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+// Helper to get Gemini AI instance
+const getAI = () => {
+    const apiKey = store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
+    if (!apiKey) return null;
+    return new GoogleGenAI({ apiKey });
+};
 
 async function simulateExecutionWithAI(code, res) {
     try {
-        if (!process.env.GEMINI_API_KEY) {
+        const aiInstance = getAI();
+        if (!aiInstance) {
             return res.json({ output: "Compiler Error: 'gcc' is not available on Vercel's serverless environment, and no GEMINI_API_KEY is configured to simulate execution.", error: true });
         }
         const prompt = `You are an expert C compiler and code executor. I will provide you with a C program.
@@ -112,8 +151,8 @@ Your job is to read the code, analyze its logic, and accurately simulate its sta
 Here is the code:
 ${code}`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+        const response = await aiInstance.models.generateContent({
+            model: 'gemini-1.5-flash',
             contents: prompt,
         });
         
@@ -180,16 +219,19 @@ app.post('/api/run', (req, res) => {
 // API Endpoint for AI Chat
 app.post('/api/chat', async (req, res) => {
     const { message, code } = req.body;
+    const apiKey = store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
 
-    if (!process.env.GEMINI_API_KEY) {
-        return res.json({ reply: 'Please add your GEMINI_API_KEY to the .env file in the backend directory to enable the AI chat!' });
+    if (!apiKey) {
+        return res.json({ reply: 'Please add your GEMINI_API_KEY to the .env file or settings to enable the AI chat!' });
     }
+
+    const aiInstance = new GoogleGenAI({ apiKey });
 
     try {
         const prompt = `You are a helpful C programming tutor. The user says: "${message}".\n\nHere is their current code context:\n${code || 'No code provided.'}\n\nProvide a concise and helpful response to debug or explain the concept. Do not provide the full solution immediately, but guide them.`;
 
-        const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+        const response = await aiInstance.models.generateContent({
+            model: 'gemini-1.5-flash',
             contents: prompt,
         });
 
@@ -202,9 +244,14 @@ app.post('/api/chat', async (req, res) => {
 
 // AI Problem Generator Endpoint
 app.post('/api/generate-problems', async (req, res) => {
-    if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({ error: 'GEMINI_API_KEY is not configured on the server. Please add it to your environment variables.' });
+    const apiKey = store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
+    
+    if (!apiKey) {
+        return res.status(401).json({ error: 'Please configure your Gemini API key in settings.' });
     }
+
+    // Initialize the AI securely with the user's key
+    const aiInstance = new GoogleGenAI({ apiKey });
 
     try {
         const { category, count } = req.body;
@@ -226,15 +273,15 @@ app.post('/api/generate-problems', async (req, res) => {
 
         let response;
         try {
-            response = await ai.models.generateContent({
-                model: 'gemini-3-flash-preview',
+            response = await aiInstance.models.generateContent({
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: { responseMimeType: "application/json" }
             });
         } catch (firstError) {
-            console.warn("gemini-3-flash-preview failed, falling back to gemini-flash-latest...", firstError.message);
+            console.warn("gemini-1.5-flash failed, falling back to gemini-flash-latest...", firstError.message);
             // Fallback to latest stable model if 503 High Demand or similar error
-            response = await ai.models.generateContent({
+            response = await aiInstance.models.generateContent({
                 model: 'gemini-flash-latest',
                 contents: prompt,
                 config: { responseMimeType: "application/json" }
