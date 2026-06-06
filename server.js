@@ -6,7 +6,7 @@ const app = express();
 const PORT = 3000;
 
 require('dotenv').config();
-const { exec, execSync } = require('child_process');
+const { exec, execSync, execFile } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 
 const path = require('path');
@@ -34,6 +34,26 @@ let store = {
     }
 })();
 
+// Helper to get Gemini API Key
+function getApiKey() {
+    return store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
+}
+
+// Helper to extract text from Gemini response safely
+async function getResponseText(response) {
+    let replyText = "";
+    if (typeof response.text === 'function') {
+        replyText = await response.text();
+    } else {
+        replyText = response.text || "";
+    }
+
+    if (!replyText && response.candidates && response.candidates[0] && response.candidates[0].content) {
+        replyText = response.candidates[0].content.parts[0].text;
+    }
+    return replyText;
+}
+
 // Route to securely save the user's API Key
 app.post('/api/settings/save', (req, res) => {
     const { apiKey } = req.body;
@@ -47,7 +67,7 @@ app.post('/api/settings/save', (req, res) => {
 
 // Route to check if a key exists
 app.get('/api/settings/status', (req, res) => {
-    const existingKey = store.get('gemini_api_key');
+    const existingKey = getApiKey();
     res.json({ hasKey: !!existingKey });
 });
 
@@ -131,7 +151,7 @@ app.get('/api/daily', (req, res) => {
 
 // Helper to get Gemini AI instance
 const getAI = () => {
-    const apiKey = store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
+    const apiKey = getApiKey();
     if (!apiKey) return null;
     return new GoogleGenAI({ apiKey });
 };
@@ -140,7 +160,7 @@ async function simulateExecutionWithAI(code, res) {
     try {
         const aiInstance = getAI();
         if (!aiInstance) {
-            return res.json({ output: "Compiler Error: 'gcc' is not available on Vercel's serverless environment, and no GEMINI_API_KEY is configured to simulate execution.", error: true });
+            return res.json({ output: "Compiler Error: 'gcc' is not available on Vercel's serverless environment, and no GEMINI_API_KEY is configured to simulate execution.", error: true, missingKey: true });
         }
         const prompt = `You are an expert C compiler and code executor. I will provide you with a C program.
 Your job is to read the code, analyze its logic, and accurately simulate its standard output as if it were run on a Linux machine.
@@ -156,7 +176,8 @@ ${code}`;
             contents: prompt,
         });
         
-        let outputText = response.text.replace(/^\`\`\`(c|text)?\n/i, '').replace(/\n\`\`\`$/, '').trim();
+        const replyText = await getResponseText(response);
+        let outputText = replyText.replace(/^\`\`\`(c|text)?\n/i, '').replace(/\n\`\`\`$/, '').trim();
         return res.json({ output: "[Vercel AI Simulated Output]\n" + outputText, error: false });
     } catch (e) {
         console.error("AI Simulation Error:", e);
@@ -166,7 +187,7 @@ ${code}`;
 
 // API Endpoint to run C code
 app.post('/api/run', (req, res) => {
-    const code = req.body.code;
+    const { code, input } = req.body;
     if (!code) {
         return res.status(400).json({ error: 'No code provided' });
     }
@@ -194,8 +215,8 @@ app.post('/api/run', (req, res) => {
             return res.json({ output: errorMsg, error: true });
         }
 
-        // Run the compiled executable
-        exec(`"${exeName}"`, { timeout: 5000 }, (runErr, runStdout, runStderr) => {
+        // Run the compiled executable using execFile for more robustness
+        const child = execFile(exeName, [], { timeout: 5000 }, (runErr, runStdout, runStderr) => {
             // Cleanup
             try {
                 if (fs.existsSync(fileName)) fs.unlinkSync(fileName);
@@ -206,23 +227,29 @@ app.post('/api/run', (req, res) => {
 
             if (runErr) {
                 if (runErr.killed) {
-                    return res.json({ output: 'Execution timed out (infinite loop?)', error: true });
+                    return res.json({ output: 'Execution timed out (possibly waiting for input or infinite loop).', error: true });
                 }
                 return res.json({ output: runStderr || runErr.message, error: true });
             }
 
             res.json({ output: runStdout, error: false });
         });
+
+        // Provide input to stdin if available
+        if (input && child.stdin) {
+            child.stdin.write(input);
+            child.stdin.end();
+        }
     });
 });
 
 // API Endpoint for AI Chat
 app.post('/api/chat', async (req, res) => {
     const { message, code } = req.body;
-    const apiKey = store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
+    const apiKey = getApiKey();
 
     if (!apiKey) {
-        return res.json({ reply: 'Please add your GEMINI_API_KEY to the .env file or settings to enable the AI chat!' });
+        return res.json({ reply: 'Please add your GEMINI_API_KEY to the .env file or settings to enable the AI chat!', missingKey: true });
     }
 
     const aiInstance = new GoogleGenAI({ apiKey });
@@ -235,7 +262,8 @@ app.post('/api/chat', async (req, res) => {
             contents: prompt,
         });
 
-        res.json({ reply: response.text });
+        const replyText = await getResponseText(response);
+        res.json({ reply: replyText });
     } catch (error) {
         console.error('AI Error:', error);
         res.json({ reply: 'Error communicating with AI. Check your API key and network.' });
@@ -244,10 +272,10 @@ app.post('/api/chat', async (req, res) => {
 
 // AI Problem Generator Endpoint
 app.post('/api/generate-problems', async (req, res) => {
-    const apiKey = store.get('gemini_api_key') || process.env.GEMINI_API_KEY;
+    const apiKey = getApiKey();
     
     if (!apiKey) {
-        return res.status(401).json({ error: 'Please configure your Gemini API key in settings.' });
+        return res.status(401).json({ error: 'Please configure your Gemini API key in settings.', missingKey: true });
     }
 
     // Initialize the AI securely with the user's key
@@ -288,8 +316,10 @@ app.post('/api/generate-problems', async (req, res) => {
             });
         }
 
+        const replyText = await getResponseText(response);
+
         // Clean text and parse JSON safely
-        let rawText = response.text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+        let rawText = replyText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
         const newProblems = JSON.parse(rawText);
 
         problems.push(...newProblems);

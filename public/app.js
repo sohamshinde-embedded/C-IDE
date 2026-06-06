@@ -142,15 +142,21 @@ aiGenerateBtn.addEventListener('click', async () => {
             body: JSON.stringify({ category, count: 2 })
         });
         
+        const data = await response.json();
+
+        if (response.status === 401 || data.missingKey) {
+            openSettings('Please enter an API Key to use AI features.');
+            aiGenerateBtn.textContent = 'AI: New Problems';
+            aiGenerateBtn.disabled = false;
+            return;
+        }
+
         if (response.ok) {
-            const newProblems = await response.json();
-            allProblems.push(...newProblems);
-            
+            allProblems.push(...data);
             const filtered = allProblems.filter(p => p.category === category);
             renderProblems(filtered);
         } else {
-            const data = await response.json();
-            alert('Failed to generate problems: ' + (data.error || 'Check backend logs.'));
+            alert(data.error || 'Failed to generate problems. Check backend logs.');
         }
     } catch (error) {
         console.error("Generate error:", error);
@@ -239,20 +245,28 @@ async function checkCompiler() {
 // --- IDE Logic ---
 const runBtn = document.getElementById('runBtn');
 const codeEditor = document.getElementById('code-editor');
+const stdinInput = document.getElementById('stdin-input');
 const consoleOutput = document.getElementById('console-output');
 
 runBtn.addEventListener('click', async () => {
     const code = codeEditor.value;
+    const input = stdinInput ? stdinInput.value : '';
     consoleOutput.textContent = 'Compiling and running...';
     
     try {
         const response = await fetch('/api/run', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
+            body: JSON.stringify({ code, input })
         });
         const data = await response.json();
         
+        if (data.missingKey) {
+            openSettings('Please enter an API Key to use AI simulation.');
+            consoleOutput.textContent = 'AI Simulation requires an API Key.';
+            return;
+        }
+
         if (data.error) {
             consoleOutput.style.color = '#ff5555'; // Error red
         } else {
@@ -264,6 +278,18 @@ runBtn.addEventListener('click', async () => {
         consoleOutput.textContent = 'Failed to connect to backend for execution.';
     }
 });
+
+function openSettings(message = '') {
+    const overlay = document.getElementById('settings-overlay');
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        const status = document.getElementById('settings-status');
+        if (status) {
+            status.textContent = message;
+            status.style.display = message ? 'block' : 'none';
+        }
+    }
+}
 
 // --- Chat Widget Logic ---
 const chatWidget = document.getElementById('chat-widget');
