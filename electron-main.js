@@ -13,7 +13,7 @@ function createWindow () {
       contextIsolation: false
     },
     autoHideMenuBar: true,
-    title: "C Practice Dashboard"
+    title: "CMentor"
   });
 
   // Load the express server address

@@ -1,15 +1,15 @@
 {
-  "name": "c-practice-dashboard",
+  "name": "cmentor",
   "version": "1.0.0",
-  "description": "",
+  "description": "CMentor: AI-Powered C Practice Dashboard",
   "main": "electron-main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-packager . 'EmbeddedLabs-IDE' --platform=win32 --arch=x64 --out=release-builds --overwrite"
+    "build": "electron-packager . 'CMentor-IDE' --platform=win32 --arch=x64 --out=release-builds --overwrite"
   },
   "build": {
-    "appId": "com.cpractice.dashboard",
-    "productName": "C Practice Dashboard",
+    "appId": "com.cmentor.app",
+    "productName": "CMentor",
     "directories": {
       "output": "dist"
     },
