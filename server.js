@@ -243,6 +243,90 @@ app.post('/api/run', (req, res) => {
     });
 });
 
+// New Native Compilation Route
+app.post('/api/compile', (req, res) => {
+    const { code } = req.body;
+    if (!code) {
+        return res.status(400).json({ success: false, error: 'No code provided' });
+    }
+
+    // Use unique filenames to avoid race conditions and EPERM locks on Windows
+    const uniqueId = Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const tmpDir = process.platform === 'win32' ? require('os').tmpdir() : '/tmp';
+    const cFile = path.join(tmpDir, `practice_${uniqueId}.c`);
+    const exeFile = path.join(tmpDir, process.platform === 'win32' ? `practice_${uniqueId}.exe` : `practice_${uniqueId}`);
+
+    try {
+        // 1. Save code to temp file
+        fs.writeFileSync(cFile, code);
+
+        // 2. Compile using gcc
+        exec(`gcc "${cFile}" -o "${exeFile}"`, (compileError, stdout, stderr) => {
+            if (compileError) {
+                // Cleanup source file if compilation fails
+                try { if (fs.existsSync(cFile)) fs.unlinkSync(cFile); } catch (e) {}
+                return res.json({
+                    success: false,
+                    output: "",
+                    error: stderr || compileError.message
+                });
+            }
+
+            // 3. Execute the compiled program with 3000ms timeout
+            // Use execFile for better binary execution handling
+            const child = execFile(exeFile, [], { timeout: 3000, killSignal: 'SIGKILL' }, (runError, runStdout, runStderr) => {
+                
+                // 4. Cleanup: Attempt to delete both files
+                // We use a small delay on Windows to ensure file handles are released
+                const cleanup = () => {
+                    try {
+                        if (fs.existsSync(cFile)) fs.unlinkSync(cFile);
+                        if (fs.existsSync(exeFile)) fs.unlinkSync(exeFile);
+                    } catch (cleanupErr) {
+                        // On Windows, sometimes the .exe is still locked for a few ms
+                        // We'll just log it; unique filenames prevent this from breaking future runs
+                        console.warn("Cleanup warning (non-fatal):", cleanupErr.message);
+                    }
+                };
+
+                if (process.platform === 'win32') {
+                    setTimeout(cleanup, 100);
+                } else {
+                    cleanup();
+                }
+
+                if (runError) {
+                    return res.json({
+                        success: false,
+                        output: runStdout,
+                        error: runError.killed ? "Execution timed out (3000ms)" : (runStderr || runError.message)
+                    });
+                }
+
+                // 5. Success response
+                res.json({
+                    success: true,
+                    output: runStdout,
+                    error: runStderr
+                });
+            });
+
+            // Provide input to stdin if available
+            const { input } = req.body;
+            if (input && child.stdin) {
+                child.stdin.write(input);
+                child.stdin.end();
+            }
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            output: "",
+            error: err.message
+        });
+    }
+});
+
 // API Endpoint for AI Chat
 app.post('/api/chat', async (req, res) => {
     const { message, code } = req.body;
@@ -330,8 +414,11 @@ app.post('/api/generate-problems', async (req, res) => {
     }
 });
 
-// Local Development: Run normally
-if (process.env.NODE_ENV !== 'production') {
+// Start the server
+// In Electron, we want it to start regardless of NODE_ENV if requested
+const shouldStart = process.env.NODE_ENV !== 'production' || process.env.START_SERVER === 'true' || require.main === module;
+
+if (shouldStart) {
     app.listen(PORT, () => {
         console.log(`Backend server running at http://localhost:${PORT}`);
     });

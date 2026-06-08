@@ -1,0 +1,1 @@
+{"code": "#include <stdio.h>\nint main() { printf(\"Hello from API!\\n\"); return 0; }"}

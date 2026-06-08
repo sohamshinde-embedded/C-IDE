@@ -4,157 +4,376 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>C-IDE Practice Dashboard</title>
+    <title>CMentor — AI-Powered C Practice Dashboard</title>
+    <meta name="description" content="Master C programming with AI-powered practice problems, a built-in compiler, and an intelligent tutor.">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <!-- ====== HEADER ====== -->
     <header class="ide-header">
         <div class="menu-bar">
-            <div class="brand">CMentor</div>
+            <div class="brand">
+                <div class="brand-icon">C</div>
+                <span class="brand-text">CMentor</span>
+            </div>
 
-            <div class="menu-item dropdown">
-                <span>Generate</span>
-                <div class="dropdown-content">
-                    <a href="#" id="dailyMenuBtn">Daily Set (10)</a>
-                    <a href="#" id="aiGenerateMenuBtn">AI: New Problems</a>
+            <nav class="main-nav">
+                <a href="#" class="nav-item active" data-view="home">Dashboard</a>
+                <a href="#" class="nav-item" data-view="practice">Practice</a>
+                <a href="#" class="nav-item" data-view="problems">Problem Library</a>
+            </nav>
+
+            <div class="header-actions">
+                <div class="header-search">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="globalSearch" placeholder="Search problems...">
                 </div>
-            </div>
-            <div class="menu-item" onclick="document.getElementById('settings-overlay').classList.remove('hidden')">
-                <span>⚙️ Settings</span>
-            </div>
-            <div class="menu-item category-select-container">
-                <select id="categoryFilter" class="menu-select">
-                    <option value="All">All Categories</option>
-                    <option value="If/Else">If/Else</option>
-                    <option value="For Loop">For Loop</option>
-                    <option value="While Loop">While Loop</option>
-                    <option value="Switch">Switch</option>
-                    <option value="Nested Loops">Nested Loops</option>
-                    <option value="Bitwise Operations">Bitwise Operations</option>
-                    <option value="Pointers & Memory">Pointers & Memory</option>
-                    <option value="Embedded Logic">Embedded Logic</option>
-                </select>
+
+                <div class="dropdown-wrapper">
+                    <button class="settings-btn" id="settings-trigger" title="Settings">⚙️</button>
+                    <div id="settings-dropdown" class="settings-dropdown hidden">
+                        <div class="dropdown-item" id="open-system-settings">
+                            <span class="dd-icon">🖥️</span> System Settings
+                        </div>
+                        <div class="dropdown-item" id="open-ai-settings">
+                            <span class="dd-icon">🤖</span> AI Configuration
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
 
-    <div class="app-layout">
-        <!-- Left Pane: Problem Library -->
-        <aside class="sidebar">
-            <main id="dashboard"></main>
-        </aside>
+    <!-- ====== TOAST CONTAINER ====== -->
+    <div class="toast-container" id="toast-container"></div>
 
-        <!-- Right Pane: Editor & Output & Debugger -->
-        <main class="ide-container">
-            <div class="editor-column">
-                <div class="editor-section">
-                    <h2><span class="icon">💻</span> Code Editor</h2>
-                    <textarea id="code-editor" spellcheck="false" placeholder="// Write your C code here...&#10;#include <stdio.h>&#10;&#10;int main() {&#10;    printf(&quot;Hello World!\\n&quot;);&#10;    return 0;&#10;}"></textarea>
-                    
-                    <div class="stdin-section" style="margin-top: 15px;">
-                        <h3><span class="icon">⌨️</span> Standard Input (Optional)</h3>
-                        <textarea id="stdin-input" spellcheck="false" placeholder="Enter input for your program here..." style="height: 60px;"></textarea>
-                    </div>
+    <!-- ====== MAIN VIEWS ====== -->
+    <div id="view-container" class="app-container">
 
-                    <button id="runBtn" class="btn btn-primary" style="margin-top: 15px;">Run Code</button>
+        <!-- ===================== HOME VIEW ===================== -->
+        <section id="home-view" class="view">
+            <!-- Stats Row -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <span class="stat-icon">✅</span>
+                    <div class="stat-value" id="solved-count">0</div>
+                    <div class="stat-label">Solved</div>
                 </div>
-                <div class="output-section">
-                    <h2><span class="icon">🖥️</span> Console Output</h2>
-                    <pre id="console-output">Waiting for execution...</pre>
+                <div class="stat-card">
+                    <span class="stat-icon">🔥</span>
+                    <div class="stat-value" id="streak-count">0</div>
+                    <div class="stat-label">Day Streak</div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-icon">📦</span>
+                    <div class="stat-value" id="total-problems">0</div>
+                    <div class="stat-label">Total Problems</div>
                 </div>
             </div>
-            
-            <div class="debugger-column">
-                <div class="debugger-section">
-                    <h2><span class="icon">🐛</span> Debugger</h2>
-                    <div class="debugger-panel">
-                        <h3>Variables</h3>
-                        <ul class="debug-list">
-                            <li><span class="var-type">int</span> <span class="var-name">i</span> = <span class="var-val">0</span></li>
-                            <li><span class="var-type">char*</span> <span class="var-name">str</span> = <span class="var-val">"hello"</span></li>
-                        </ul>
+
+            <!-- Daily Challenge Banner -->
+            <div class="daily-challenge-card" id="daily-challenge-card">
+                <div class="daily-info">
+                    <div class="card-tag">⚡ Daily Challenge</div>
+                    <h2 id="daily-title">Loading Daily Challenge...</h2>
+                    <p id="daily-statement">Ready to test your C skills today?</p>
+                </div>
+                <button class="btn btn-primary" id="start-daily-btn" style="flex-shrink:0;">Start Practice →</button>
+            </div>
+
+            <!-- Dashboard Grid -->
+            <div class="dashboard-grid" style="margin-top: 24px;">
+                <!-- Categories / Modules -->
+                <div class="categories-section">
+                    <div class="section-title">
+                        <span class="title-icon">📂</span> Practice by Category
                     </div>
-                    <div class="debugger-panel">
-                        <h3>Call Stack</h3>
-                        <ul class="debug-list">
-                            <li>main() : line 4</li>
-                        </ul>
-                    </div>
-                    <div class="debugger-panel">
-                        <h3>Watch</h3>
-                        <p class="watch-empty">No expressions to watch</p>
+                    <div class="categories-grid" id="categories-grid">
+                        <!-- Injected by JS -->
                     </div>
                 </div>
+
+                <!-- Recent Activity -->
+                <div class="recent-activity-section">
+                    <div class="section-title" style="margin-bottom: 16px;">
+                        <span class="title-icon">🕐</span> Recent Solved
+                    </div>
+                    <ul id="recent-solved-list" class="activity-list">
+                        <li class="empty-msg">No problems solved yet. Start practicing!</li>
+                    </ul>
+                </div>
             </div>
-        </main>
+        </section>
+
+        <!-- ===================== PROBLEMS LIBRARY VIEW ===================== -->
+        <section id="problems-view" class="view hidden">
+            <!-- Course Banner -->
+            <div class="course-banner">
+                <div class="course-icon">C</div>
+                <h2>Practice C</h2>
+                <p class="course-desc">Improve your C programming skills with practice problems. Solve beginner to advanced problems covering loops, arrays, pointers, and embedded systems.</p>
+                <div class="course-meta">
+                    <span class="meta-item"><span class="meta-icon">📚</span> <span id="meta-lessons">—</span> Categories</span>
+                    <span class="meta-item"><span class="meta-icon">💡</span> <span id="meta-problems">—</span> Problems</span>
+                    <span class="meta-item"><span class="meta-icon">📈</span> Beginner → Advanced</span>
+                </div>
+                <div class="course-progress-bar" style="margin-top: 18px;">
+                    <span style="font-size:13px; color: var(--text-secondary);">Your Progress:</span>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="course-progress-fill" style="width: 0%"></div>
+                    </div>
+                    <span class="progress-text" id="course-progress-text">0% Completed</span>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="problems-header">
+                <h2 style="font-size: 18px;">Problem Library</h2>
+                <div class="filter-bar">
+                    <input type="text" id="problemSearch" placeholder="🔍 Search problems...">
+                    <select id="categoryFilter">
+                        <option value="All">All Categories</option>
+                        <option value="If/Else">If/Else</option>
+                        <option value="For Loop">For Loop</option>
+                        <option value="While Loop">While Loop</option>
+                        <option value="Switch">Switch</option>
+                        <option value="Nested Loops">Nested Loops</option>
+                        <option value="Bitwise Operations">Bitwise Operations</option>
+                        <option value="Pointers & Memory">Pointers & Memory</option>
+                        <option value="Embedded Logic">Embedded Logic</option>
+                    </select>
+                    <select id="difficultyFilter">
+                        <option value="All">All Difficulties</option>
+                        <option value="Beginner">Beginner</option>
+                        <option value="Intermediate">Intermediate</option>
+                        <option value="Advanced">Advanced</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Module Accordions (injected by JS) -->
+            <div id="modules-container">
+                <!-- Fallback: flat table -->
+                <div class="problems-table-container glass-panel" id="problems-flat-table">
+                    <table id="problems-table">
+                        <thead>
+                            <tr>
+                                <th style="width:50px">Status</th>
+                                <th>Problem Name</th>
+                                <th>Category</th>
+                                <th>Difficulty</th>
+                                <th style="width:80px">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="problems-body">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- AI Generate Bar -->
+            <div class="generate-bar">
+                <span class="gen-label">✨ <strong>AI Generator</strong></span>
+                <span style="flex:1; font-size: 13px; color: var(--text-muted);">Generate new practice problems with AI</span>
+                <button class="btn btn-primary btn-small" id="ai-generate-btn">Generate Problems</button>
+            </div>
+        </section>
+
+        <!-- ===================== PRACTICE (IDE) VIEW ===================== -->
+        <section id="practice-view" class="view hidden">
+            <div class="app-layout">
+                <!-- Left: Problem Panel -->
+                <aside class="problem-sidebar">
+                    <!-- Tabs -->
+                    <div class="problem-tabs">
+                        <div class="problem-tab active" data-tab="statement">Statement</div>
+                        <div class="problem-tab" data-tab="hint">Hint</div>
+                        <div class="problem-tab" data-tab="output">Expected Output</div>
+                    </div>
+
+                    <!-- Step Tracker -->
+                    <div class="step-tracker" id="step-tracker">
+                        <!-- Dots injected by JS -->
+                    </div>
+
+                    <!-- Problem Content -->
+                    <div class="problem-content" id="current-problem-detail">
+                        <div class="tags">
+                            <span id="detail-category" class="tag">Category</span>
+                            <span id="detail-difficulty" class="difficulty-tag">Difficulty</span>
+                        </div>
+                        <h2 id="detail-title">Select a problem to start</h2>
+
+                        <!-- Tab Panels -->
+                        <div id="tab-statement" class="tab-panel">
+                            <p id="detail-statement" class="problem-statement">Choose a problem from the Problem Library or Daily Challenge to begin coding.</p>
+                        </div>
+                        <div id="tab-hint" class="tab-panel hidden">
+                            <div id="detail-hint" class="hidden-content" style="display:block; margin-top:0;"></div>
+                        </div>
+                        <div id="tab-output" class="tab-panel hidden">
+                            <div id="detail-output" class="hidden-content" style="display:block; margin-top:0;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Actions -->
+                    <div class="problem-actions">
+                        <div style="display:flex; gap:6px;">
+                            <button id="prev-prob-btn" class="btn btn-small btn-ghost">← Prev</button>
+                            <button id="next-prob-btn" class="btn btn-small btn-ghost">Next →</button>
+                        </div>
+                        <button id="solve-mark-btn" class="btn btn-small mark-btn">✓ Mark as Solved</button>
+                    </div>
+                </aside>
+
+                <!-- Resize Handle -->
+                <div class="resize-handle" id="resize-handle"></div>
+
+                <!-- Right: IDE -->
+                <main class="ide-container">
+                    <!-- Editor Toolbar -->
+                    <div class="editor-toolbar">
+                        <div class="file-tab">
+                            <span class="file-icon">📄</span> solution.c
+                        </div>
+                        <div class="toolbar-actions">
+                            <button id="reset-code-btn" class="btn btn-small btn-ghost" title="Reset Code">↻ Reset</button>
+                        </div>
+                    </div>
+
+                    <!-- Code Editor -->
+                    <div class="editor-area">
+                        <textarea id="code-editor" spellcheck="false" placeholder="// Write your C code here..."></textarea>
+                    </div>
+
+                    <!-- Stdin -->
+                    <div class="stdin-section">
+                        <h3>⌨️ Standard Input</h3>
+                        <textarea id="stdin-input" spellcheck="false" placeholder="Enter input values here (one per line)..."></textarea>
+                    </div>
+
+                    <!-- Run Bar -->
+                    <div class="run-bar">
+                        <button id="runBtn" class="btn btn-success">▶ Run Code</button>
+                    </div>
+
+                    <!-- Output -->
+                    <div class="output-section">
+                        <div class="output-header">🖥️ Console Output</div>
+                        <pre id="console-output">Waiting for execution...</pre>
+                    </div>
+                </main>
+            </div>
+        </section>
     </div>
 
-    <!-- Floating Chat Widget -->
+    <!-- ====== FLOATING CHAT WIDGET ====== -->
     <div id="chat-widget" class="chat-widget collapsed">
         <div class="chat-header" id="chat-header">
-            <h3><span class="icon">🤖</span> AI Assistant</h3>
+            <h3>🤖 AI Assistant</h3>
             <span class="toggle-icon">▲</span>
         </div>
         <div class="chat-body" id="chat-body">
-            <div class="chat-message ai-msg">Hi! I'm your AI C-tutor. How can I help you debug today?</div>
+            <div class="chat-message ai-msg">Hi! I'm your AI C-tutor. Ask me anything about your code!</div>
         </div>
         <div class="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Ask a question about your code...">
+            <input type="text" id="chat-input" placeholder="Ask about your code...">
             <button id="chat-send">Send</button>
         </div>
     </div>
 
-    <!-- Setup Required Overlay -->
+    <!-- ====== GCC NOT FOUND OVERLAY ====== -->
     <div id="setup-overlay" class="setup-overlay hidden">
         <div class="setup-modal">
             <h2>⚠️ GCC Compiler Not Found</h2>
-            <p>This C Practice Dashboard runs code locally on your machine. We could not detect the GCC compiler in your system PATH.</p>
+            <p>CMentor runs code locally on your machine. We could not detect the GCC compiler in your system PATH.</p>
             <p>Please install a C compiler to unlock the "Run Code" feature:</p>
             <div class="setup-instructions">
                 <div class="os-instruction">
-                    <strong>🪟 Windows:</strong> Install <a href="https://github.com/skeeto/w64devkit/releases" target="_blank">w64devkit</a> or <a href="https://www.msys2.org/" target="_blank">MinGW-w64</a>. Make sure the <code>bin</code> folder is added to your PATH.
+                    <strong>🪟 Windows:</strong> Install <a href="https://github.com/skeeto/w64devkit/releases" target="_blank">w64devkit</a> or <a href="https://www.msys2.org/" target="_blank">MinGW-w64</a>. Add the <code>bin</code> folder to your PATH.
                 </div>
                 <div class="os-instruction">
-                    <strong>🍎 Mac:</strong> Open terminal and run <code>xcode-select --install</code>.
+                    <strong>🍎 Mac:</strong> Run <code>xcode-select --install</code> in terminal.
                 </div>
                 <div class="os-instruction">
                     <strong>🐧 Linux:</strong> Run <code>sudo apt install build-essential</code>.
                 </div>
             </div>
-            <p><em>After installing, please restart the application.</em></p>
+            <p><em>After installing, restart the application.</em></p>
+            <button onclick="document.getElementById('setup-overlay').classList.add('hidden')" class="btn" style="margin-top: 20px; width: 100%;">Close</button>
         </div>
     </div>
 
-    <!-- AI Settings Overlay -->
+    <!-- ====== SETTINGS MODAL ====== -->
     <div id="settings-overlay" class="setup-overlay hidden">
-        <div class="setup-modal">
-            <h2>⚙️ AI Settings</h2>
-            <p>Enter your Google Gemini API key to enable problem generation and the AI Assistant.</p>
-            <div style="margin: 20px 0;">
-                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." style="width: 100%; padding: 10px; background: #1e1e1e; color: #fff; border: 1px solid #444; border-radius: 4px; font-family: 'JetBrains Mono', monospace;">
+        <div class="setup-modal" style="text-align: left;">
+            <h2 id="settings-modal-title">⚙️ Settings</h2>
+
+            <div id="ai-settings-section" class="settings-section">
+                <h3>AI Configuration</h3>
+                <p>Enter your Gemini API key to enable AI Assistant and Problem Generation.</p>
+                <div style="margin-bottom: 15px;">
+                    <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="settings-input">
+                </div>
+                <button onclick="saveApiKey()" class="btn btn-primary" style="width: 100%;">Save & Connect</button>
             </div>
-            <div id="settings-status" style="display: none; margin-bottom: 15px; padding: 10px; border-radius: 4px; font-size: 13px; background: rgba(77, 170, 252, 0.1); color: #4daafc; border: 1px solid rgba(77, 170, 252, 0.3);"></div>
-            <div style="display: flex; gap: 10px;">
-                <button onclick="saveApiKey()" class="btn btn-primary">Save & Connect</button>
-                <button onclick="closeSettings()" class="btn" style="background: #444; color: white;">Cancel</button>
+
+            <div id="system-settings-section" class="settings-section" style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
+                <h3>System Status</h3>
+                <div id="compiler-status-msg" style="font-size: 13px; color: var(--text-muted);">Checking system components...</div>
             </div>
-            <p style="font-size: 12px; margin-top: 15px; color: #aaa;">Don't have one? <a href="https://aistudio.google.com/" target="_blank" style="color: #4daafc;">Get a free API key from Google AI Studio</a></p>
+
+            <div id="settings-status" style="display: none; margin-top: 15px; padding: 10px; border-radius: var(--radius-sm); font-size: 13px; background: rgba(59, 130, 246, 0.1); color: var(--primary-light); border: 1px solid rgba(59, 130, 246, 0.2);"></div>
+
+            <div style="margin-top: 24px;">
+                <button onclick="closeSettings()" class="btn" style="width: 100%; background: var(--bg-primary); border-color: var(--border);">Close</button>
+            </div>
         </div>
     </div>
 
-    <!-- Footer Badge -->
-    <div id="compiler-badge" class="compiler-badge hidden">
-        🟢 Compiler Ready
+    <!-- ====== AI GENERATE MODAL ====== -->
+    <div id="generate-overlay" class="setup-overlay hidden">
+        <div class="setup-modal" style="text-align: left; max-width: 420px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">✨ AI Problem Generator</h2>
+            <div class="generate-modal-body">
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="gen-category">
+                        <option value="If/Else">If/Else</option>
+                        <option value="For Loop">For Loop</option>
+                        <option value="While Loop">While Loop</option>
+                        <option value="Switch">Switch</option>
+                        <option value="Nested Loops">Nested Loops</option>
+                        <option value="Bitwise Operations">Bitwise Operations</option>
+                        <option value="Pointers & Memory">Pointers & Memory</option>
+                        <option value="Embedded Logic">Embedded Logic</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Number of Problems</label>
+                    <input type="number" id="gen-count" value="3" min="1" max="10">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                    <button class="btn" onclick="document.getElementById('generate-overlay').classList.add('hidden')" style="flex:1;">Cancel</button>
+                    <button class="btn btn-primary" id="gen-submit-btn" onclick="submitGenerateProblems()" style="flex:1;">Generate</button>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- ====== COMPILER BADGE ====== -->
+    <div id="compiler-badge" class="compiler-badge hidden">
+        <span class="badge-dot"></span> Compiler Ready
+    </div>
+
+    <!-- ====== SCRIPTS ====== -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
     <script src="app.js"></script>
 </body>
-
-</html>ody>
 
 </html>

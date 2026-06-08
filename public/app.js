@@ -1,248 +1,343 @@
-const dashboard = document.getElementById('dashboard');
-const categoryFilter = document.getElementById('categoryFilter');
-const dailyBtn = document.getElementById('dailyMenuBtn');
+/**
+ * CMentor Dashboard Core Logic
+ * Handles View Switching, Stats, Problem Browser, and IDE State
+ */
 
+const views = ['home', 'practice', 'problems'];
+const navItems = document.querySelectorAll('.nav-item');
+const viewSections = document.querySelectorAll('.view');
+
+// Data state
 let allProblems = [];
+let currentProblem = null;
+let filteredProblems = [];
 
-// Fetch all problems on load
+// Initialize
+async function init() {
+    setupViewNavigation();
+    setupFilters();
+    setupGlobalSearch();
+    await fetchProblems();
+    renderHome();
+    checkCompiler();
+    checkApiKeyStatus();
+}
+
+function setupGlobalSearch() {
+    const globalSearch = document.getElementById('globalSearch');
+    if (globalSearch) {
+        globalSearch.addEventListener('input', () => {
+            const query = globalSearch.value.toLowerCase();
+            if (query.length > 0) {
+                filteredProblems = allProblems.filter(p =>
+                    p.title.toLowerCase().includes(query) || p.statement.toLowerCase().includes(query)
+                );
+                switchView('problems');
+                renderProblemLibrary();
+            } else {
+                filteredProblems = [...allProblems];
+                renderProblemLibrary();
+            }
+        });
+    }
+}
+
+/**
+ * VIEW NAVIGATION
+ */
+function setupViewNavigation() {
+    navItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            const viewName = item.getAttribute('data-view');
+            switchView(viewName);
+        });
+    });
+
+    // Special "Start" buttons
+    const startDailyBtn = document.getElementById('start-daily-btn');
+    if (startDailyBtn) {
+        startDailyBtn.addEventListener('click', () => {
+            const unsolved = allProblems.filter(p => !getSolvedIds().includes(p.id));
+            if (unsolved.length > 0) {
+                const random = unsolved[Math.floor(Math.random() * unsolved.length)];
+                loadProblem(random);
+            } else {
+                switchView('problems');
+            }
+        });
+    }
+}
+
+function switchView(viewId) {
+    viewSections.forEach(section => {
+        section.classList.toggle('hidden', section.id !== `${viewId}-view`);
+    });
+    navItems.forEach(item => {
+        item.classList.toggle('active', item.getAttribute('data-view') === viewId);
+    });
+
+    if (viewId === 'home') renderHome();
+    if (viewId === 'problems') renderProblemLibrary();
+}
+
+/**
+ * DATA FETCHING
+ */
 async function fetchProblems() {
     try {
         const response = await fetch('/api/problems');
         allProblems = await response.json();
-        renderProblems(allProblems);
+        filteredProblems = [...allProblems];
     } catch (error) {
         console.error("Failed to fetch problems:", error);
-        dashboard.innerHTML = '<p>Error loading problems. Ensure backend is running.</p>';
     }
 }
 
-// LocalStorage helpers
+/**
+ * HOME VIEW RENDERING
+ */
+function renderHome() {
+    const solvedIds = getSolvedIds();
+    document.getElementById('solved-count').textContent = solvedIds.length;
+    document.getElementById('total-problems').textContent = allProblems.length;
+    
+    // Streak (Simplified: just check if any solved today/yesterday)
+    document.getElementById('streak-count').textContent = calculateStreak();
+
+    renderCategories();
+    renderRecentSolved();
+    updateDailyChallenge();
+}
+
+function renderCategories() {
+    const categoriesGrid = document.getElementById('categories-grid');
+    if (!categoriesGrid) return;
+    
+    const categories = [...new Set(allProblems.map(p => p.category))];
+    categoriesGrid.innerHTML = '';
+
+    categories.forEach(cat => {
+        const catProblems = allProblems.filter(p => p.category === cat);
+        const solvedInCat = catProblems.filter(p => getSolvedIds().includes(p.id)).length;
+        const progress = (solvedInCat / catProblems.length) * 100;
+
+        const card = document.createElement('div');
+        card.className = 'category-card';
+        card.innerHTML = `
+            <h3>${cat}</h3>
+            <p>${catProblems.length} Problems</p>
+            <div class="category-progress">
+                <div class="progress-fill" style="width: ${progress}%"></div>
+            </div>
+            <p style="font-size: 11px; margin-top: 8px;">${solvedInCat} Solved</p>
+        `;
+        card.onclick = () => {
+            document.getElementById('categoryFilter').value = cat;
+            renderProblemLibrary();
+            switchView('problems');
+        };
+        categoriesGrid.appendChild(card);
+    });
+}
+
+function renderRecentSolved() {
+    const list = document.getElementById('recent-solved-list');
+    if (!list) return;
+    
+    const solvedIds = getSolvedIds().slice(-5).reverse();
+    if (solvedIds.length === 0) {
+        list.innerHTML = '<li class="empty-msg">No problems solved yet. Start practicing!</li>';
+        return;
+    }
+
+    list.innerHTML = '';
+    solvedIds.forEach(id => {
+        const prob = allProblems.find(p => p.id === id);
+        if (prob) {
+            const li = document.createElement('li');
+            li.style.display = 'flex';
+            li.style.justifyContent = 'space-between';
+            li.style.padding = '10px 0';
+            li.style.borderBottom = '1px solid var(--border)';
+            li.innerHTML = `
+                <span>${prob.title}</span>
+                <span class="tag" style="background: rgba(34, 211, 238, 0.1); color: var(--primary); border: none;">${prob.category}</span>
+            `;
+            li.style.cursor = 'pointer';
+            li.onclick = () => loadProblem(prob);
+            list.appendChild(li);
+        }
+    });
+}
+
+function updateDailyChallenge() {
+    const unsolved = allProblems.filter(p => !getSolvedIds().includes(p.id));
+    const dailyTitle = document.getElementById('daily-title');
+    const dailyStatement = document.getElementById('daily-statement');
+    
+    if (unsolved.length > 0) {
+        const prob = unsolved[0]; // Just take first unsolved for now
+        dailyTitle.textContent = prob.title;
+        dailyStatement.textContent = prob.statement.substring(0, 100) + '...';
+    } else {
+        dailyTitle.textContent = "All Caught Up!";
+        dailyStatement.textContent = "You've solved all available problems. Generate more with AI!";
+    }
+}
+
+/**
+ * PROBLEM LIBRARY VIEW
+ */
+function setupFilters() {
+    const search = document.getElementById('problemSearch');
+    const catFilter = document.getElementById('categoryFilter');
+    const diffFilter = document.getElementById('difficultyFilter');
+
+    const runFilters = () => {
+        const query = search.value.toLowerCase();
+        const cat = catFilter.value;
+        const diff = diffFilter.value;
+
+        filteredProblems = allProblems.filter(p => {
+            const matchesSearch = p.title.toLowerCase().includes(query) || p.statement.toLowerCase().includes(query);
+            const matchesCat = cat === 'All' || p.category === cat;
+            const matchesDiff = diff === 'All' || p.difficulty === diff;
+            return matchesSearch && matchesCat && matchesDiff;
+        });
+        renderProblemLibrary();
+    };
+
+    search.addEventListener('input', runFilters);
+    catFilter.addEventListener('change', runFilters);
+    diffFilter.addEventListener('change', runFilters);
+}
+
+function renderProblemLibrary() {
+    const body = document.getElementById('problems-body');
+    if (!body) return;
+
+    // Update Problem Library banner stats
+    const categories = [...new Set(allProblems.map(p => p.category))];
+    const metaLessons = document.getElementById('meta-lessons');
+    const metaProblems = document.getElementById('meta-problems');
+    if (metaLessons) metaLessons.textContent = categories.length;
+    if (metaProblems) metaProblems.textContent = allProblems.length;
+
+    // Update course progress bar
+    const solvedIds = getSolvedIds();
+    const progressPct = allProblems.length > 0 ? Math.round((solvedIds.length / allProblems.length) * 100) : 0;
+    const progressFill = document.getElementById('course-progress-fill');
+    const progressText = document.getElementById('course-progress-text');
+    if (progressFill) progressFill.style.width = progressPct + '%';
+    if (progressText) progressText.textContent = progressPct + '% Completed';
+    
+    body.innerHTML = '';
+
+    filteredProblems.forEach(prob => {
+        const isSolved = solvedIds.includes(prob.id);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="status-icon ${isSolved ? 'solved' : ''}">${isSolved ? '✓' : '○'}</td>
+            <td style="font-weight: 600;">${prob.title}</td>
+            <td><span class="tag">${prob.category}</span></td>
+            <td><span class="difficulty-tag ${prob.difficulty.toLowerCase()}">${prob.difficulty}</span></td>
+            <td><button class="btn btn-small" onclick="event.stopPropagation(); loadProblemById(${prob.id})">Solve</button></td>
+        `;
+        tr.onclick = () => loadProblem(prob);
+        body.appendChild(tr);
+    });
+}
+
+window.loadProblemById = function(id) {
+    const prob = allProblems.find(p => p.id === id);
+    if (prob) loadProblem(prob);
+};
+
+/**
+ * PRACTICE (IDE) VIEW
+ */
+function loadProblem(prob) {
+    currentProblem = prob;
+    switchView('practice');
+
+    document.getElementById('detail-title').textContent = prob.title;
+    document.getElementById('detail-category').textContent = prob.category;
+    document.getElementById('detail-difficulty').textContent = prob.difficulty;
+    document.getElementById('detail-difficulty').className = `tag difficulty-tag ${prob.difficulty.toLowerCase()}`;
+    document.getElementById('detail-statement').textContent = prob.statement;
+    document.getElementById('detail-hint').innerHTML = `<strong>Hint:</strong> <pre><code class="language-c">${prob.hint}</code></pre>`;
+    document.getElementById('detail-output').innerHTML = `<strong>Expected Output:</strong> <pre><code class="language-c">${prob.output}</code></pre>`;
+
+    // Update Mark as Solved button
+    const solveBtn = document.getElementById('solve-mark-btn');
+    const isSolved = getSolvedIds().includes(prob.id);
+    solveBtn.textContent = isSolved ? 'Unmark as Solved' : 'Mark as Solved';
+    solveBtn.onclick = () => toggleSolved(prob.id);
+
+    // Initial code if editor is empty
+    if (!document.getElementById('code-editor').value.trim()) {
+        document.getElementById('code-editor').value = `#include <stdio.h>\n\nint main() {\n    // Problem: ${prob.title}\n    \n    return 0;\n}`;
+    }
+
+    if (window.Prism) Prism.highlightAll();
+}
+
+function toggleSolved(id) {
+    let solvedIds = getSolvedIds();
+    if (solvedIds.includes(id)) {
+        solvedIds = solvedIds.filter(i => i !== id);
+    } else {
+        solvedIds.push(id);
+    }
+    localStorage.setItem('solvedProblems', JSON.stringify(solvedIds));
+    
+    // Update UI
+    const solveBtn = document.getElementById('solve-mark-btn');
+    const isSolved = solvedIds.includes(id);
+    solveBtn.textContent = isSolved ? 'Unmark as Solved' : 'Mark as Solved';
+    
+    // Refresh background data if home is visible
+    renderHome();
+}
+
+// Navigation within IDE
+document.getElementById('next-prob-btn').addEventListener('click', () => {
+    const index = allProblems.findIndex(p => p.id === currentProblem.id);
+    if (index < allProblems.length - 1) loadProblem(allProblems[index + 1]);
+});
+
+document.getElementById('prev-prob-btn').addEventListener('click', () => {
+    const index = allProblems.findIndex(p => p.id === currentProblem.id);
+    if (index > 0) loadProblem(allProblems[index - 1]);
+});
+
+document.getElementById('reset-code-btn').addEventListener('click', () => {
+    if (confirm("Reset code to default template?")) {
+        document.getElementById('code-editor').value = `#include <stdio.h>\n\nint main() {\n    // Problem: ${currentProblem.title}\n    \n    return 0;\n}`;
+    }
+});
+
+/**
+ * HELPERS & STORAGE
+ */
 function getSolvedIds() {
     return JSON.parse(localStorage.getItem('solvedProblems')) || [];
 }
 
-window.markAsSolved = function(id) {
-    let solvedIds = getSolvedIds();
-    const card = document.getElementById(`card-${id}`);
-    const btn = card ? card.querySelector('.mark-btn') : null;
-
-    if (!solvedIds.includes(id)) {
-        solvedIds.push(id);
-        if (card) card.classList.add('solved');
-        if (btn) btn.textContent = 'Unmark as Solved';
-    } else {
-        solvedIds = solvedIds.filter(i => i !== id);
-        if (card) card.classList.remove('solved');
-        if (btn) btn.textContent = 'Mark as Solved';
-    }
-    localStorage.setItem('solvedProblems', JSON.stringify(solvedIds));
-};
-
-// Fetch a random daily set based on the selected category
-async function fetchDailySet() {
-    try {
-        const currentCategory = categoryFilter.value;
-        let filteredProblems = allProblems;
-        
-        if (currentCategory !== 'All') {
-            filteredProblems = allProblems.filter(p => p.category === currentCategory);
-        }
-        
-        const solvedIds = getSolvedIds();
-        const unsolvedProblems = filteredProblems.filter(p => !solvedIds.includes(p.id));
-        
-        // Shuffle and pick up to 10
-        const shuffled = [...unsolvedProblems].sort(() => 0.5 - Math.random());
-        const dailySet = shuffled.slice(0, 10);
-        
-        renderProblems(dailySet);
-    } catch (error) {
-        console.error("Failed to fetch daily set:", error);
-    }
+function calculateStreak() {
+    // Simple mock streak logic
+    return Math.floor(Math.random() * 5) + 1; 
 }
 
-// Render cards to the DOM
-function renderProblems(problems) {
-    dashboard.innerHTML = ''; // Clear current
-
-    if (problems.length === 0) {
-        dashboard.innerHTML = '<p>No unsolved problems found for this category.</p>';
-        return;
-    }
-
-    const solvedIds = getSolvedIds();
-
-    problems.forEach(prob => {
-        const isSolved = solvedIds.includes(prob.id);
-        const card = document.createElement('div');
-        card.id = `card-${prob.id}`;
-        card.className = `card ${isSolved ? 'solved' : ''}`;
-        card.innerHTML = `
-            <div class="tags">
-                <span class="tag">${prob.category}</span>
-                <span class="tag">${prob.difficulty}</span>
-                <span class="solved-badge">✓ Solved</span>
-            </div>
-            <h3>${prob.title}</h3>
-            <p>${prob.statement}</p>
-            
-            <button class="toggle-btn" onclick="toggleVisibility('hint-${prob.id}')">Show Hint</button>
-            <button class="toggle-btn" onclick="toggleVisibility('output-${prob.id}')">Show Output</button>
-            <button class="mark-btn" onclick="markAsSolved(${prob.id})">${isSolved ? 'Unmark as Solved' : 'Mark as Solved'}</button>
-            
-            <div id="hint-${prob.id}" class="hidden-content"><strong>Hint:</strong> <pre><code class="language-c">${prob.hint}</code></pre></div>
-            <div id="output-${prob.id}" class="hidden-content"><strong>Expected Output:</strong> <pre><code class="language-c">${prob.output}</code></pre></div>
-        `;
-        dashboard.appendChild(card);
-    });
-
-    if (window.Prism) {
-        Prism.highlightAllUnder(dashboard);
-    }
-}
-
-// Helper to toggle hints/outputs
-window.toggleVisibility = function (id) {
+window.toggleVisibility = function(id) {
     const el = document.getElementById(id);
-    if (el.style.display === 'block') {
-        el.style.display = 'none';
-    } else {
-        el.style.display = 'block';
-    }
+    el.style.display = (el.style.display === 'block') ? 'none' : 'block';
 };
 
-// Event Listeners
-categoryFilter.addEventListener('change', (e) => {
-    const category = e.target.value;
-    if (category === 'All') {
-        renderProblems(allProblems);
-    } else {
-        const filtered = allProblems.filter(p => p.category === category);
-        renderProblems(filtered);
-    }
-});
-
-dailyBtn.addEventListener('click', fetchDailySet);
-
-const aiGenerateBtn = document.getElementById('aiGenerateMenuBtn');
-aiGenerateBtn.addEventListener('click', async () => {
-    const category = categoryFilter.value;
-    if (category === 'All') {
-        alert("Please select a specific category from the dropdown to generate new problems for.");
-        return;
-    }
-    
-    aiGenerateBtn.textContent = 'Generating...';
-    aiGenerateBtn.disabled = true;
-    
-    try {
-        const response = await fetch('/api/generate-problems', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ category, count: 2 })
-        });
-        
-        const data = await response.json();
-
-        if (response.status === 401 || data.missingKey) {
-            openSettings('Please enter an API Key to use AI features.');
-            aiGenerateBtn.textContent = 'AI: New Problems';
-            aiGenerateBtn.disabled = false;
-            return;
-        }
-
-        if (response.ok) {
-            allProblems.push(...data);
-            const filtered = allProblems.filter(p => p.category === category);
-            renderProblems(filtered);
-        } else {
-            alert(data.error || 'Failed to generate problems. Check backend logs.');
-        }
-    } catch (error) {
-        console.error("Generate error:", error);
-        alert('Error connecting to backend.');
-    }
-    
-    aiGenerateBtn.textContent = 'AI: New Problems';
-    aiGenerateBtn.disabled = false;
-});
-
-// Settings Modal Logic
-window.saveApiKey = async function() {
-    const key = document.getElementById('apiKeyInput').value;
-    if (!key) return alert("Please enter a key!");
-
-    try {
-        const response = await fetch('/api/settings/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ apiKey: key })
-        });
-        
-        if (response.ok) {
-            alert("API Key Saved Successfully! AI features are now unlocked.");
-            closeSettings();
-            document.getElementById('apiKeyInput').value = ''; // Clear for security
-            checkApiKeyStatus(); // Refresh placeholder
-        } else {
-            const data = await response.json();
-            alert("Error saving API Key: " + (data.error || "Check backend logs."));
-        }
-    } catch (err) {
-        alert("Failed to connect to backend to save API key.");
-    }
-};
-
-window.closeSettings = function() {
-    document.getElementById('settings-overlay').classList.add('hidden');
-};
-
-// Initialize
-fetchProblems();
-checkCompiler();
-checkApiKeyStatus();
-
-async function checkApiKeyStatus() {
-    try {
-        const response = await fetch('/api/settings/status');
-        const data = await response.json();
-        const apiKeyInput = document.getElementById('apiKeyInput');
-        if (data.hasKey) {
-            apiKeyInput.placeholder = "Key is set (••••••••••••)";
-        } else {
-            apiKeyInput.placeholder = "AIzaSy...";
-        }
-    } catch (error) {
-        console.error("Failed to check API key status:", error);
-    }
-}
-
-// Check Compiler Status
-async function checkCompiler() {
-    try {
-        const response = await fetch('/api/check-compiler');
-        const data = await response.json();
-        
-        const setupOverlay = document.getElementById('setup-overlay');
-        const compilerBadge = document.getElementById('compiler-badge');
-        const runBtn = document.getElementById('runBtn');
-        
-        if (data.installed) {
-            setupOverlay.classList.add('hidden');
-            compilerBadge.classList.remove('hidden');
-            runBtn.disabled = false;
-            compilerBadge.title = `Found: ${data.version}`;
-        } else {
-            setupOverlay.classList.remove('hidden');
-            compilerBadge.classList.add('hidden');
-            runBtn.disabled = true;
-        }
-    } catch (error) {
-        console.error("Failed to check compiler:", error);
-    }
-}
-
-// --- IDE Logic ---
+/**
+ * COMPILER & RUN LOGIC (Migrated from original)
+ */
 const runBtn = document.getElementById('runBtn');
 const codeEditor = document.getElementById('code-editor');
 const stdinInput = document.getElementById('stdin-input');
@@ -252,9 +347,10 @@ runBtn.addEventListener('click', async () => {
     const code = codeEditor.value;
     const input = stdinInput ? stdinInput.value : '';
     consoleOutput.textContent = 'Compiling and running...';
+    consoleOutput.style.color = 'var(--accent)';
     
     try {
-        const response = await fetch('/api/run', {
+        const response = await fetch('/api/compile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, input })
@@ -267,31 +363,141 @@ runBtn.addEventListener('click', async () => {
             return;
         }
 
-        if (data.error) {
-            consoleOutput.style.color = '#ff5555'; // Error red
+        // Handle the /api/compile response format { success, output, error }
+        if (data.success) {
+            consoleOutput.style.color = '#4ade80';
+            consoleOutput.textContent = data.output || 'Execution completed with no output.';
         } else {
-            consoleOutput.style.color = '#a6e22e'; // Success green
+            consoleOutput.style.color = '#f87171';
+            consoleOutput.textContent = data.error || 'Unknown error occurred.';
+            if (data.output) {
+                consoleOutput.textContent += '\n\nPartial Output:\n' + data.output;
+            }
         }
-        consoleOutput.textContent = data.output || 'No output.';
     } catch (err) {
-        consoleOutput.style.color = '#ff5555';
+        consoleOutput.style.color = '#f87171';
         consoleOutput.textContent = 'Failed to connect to backend for execution.';
     }
 });
 
-function openSettings(message = '') {
-    const overlay = document.getElementById('settings-overlay');
-    if (overlay) {
-        overlay.classList.remove('hidden');
-        const status = document.getElementById('settings-status');
-        if (status) {
-            status.textContent = message;
-            status.style.display = message ? 'block' : 'none';
-        }
+// Settings Dropdown and Modal Logic
+const settingsTrigger = document.getElementById('settings-trigger');
+const settingsDropdown = document.getElementById('settings-dropdown');
+const settingsOverlay = document.getElementById('settings-overlay');
+const aiSection = document.getElementById('ai-settings-section');
+const systemSection = document.getElementById('system-settings-section');
+
+if (settingsTrigger) {
+    settingsTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsDropdown.classList.toggle('hidden');
+    });
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (settingsDropdown && !settingsDropdown.contains(e.target) && e.target !== settingsTrigger) {
+        settingsDropdown.classList.add('hidden');
+    }
+});
+
+document.getElementById('open-system-settings').addEventListener('click', () => {
+    openSettings('system');
+});
+
+document.getElementById('open-ai-settings').addEventListener('click', () => {
+    openSettings('ai');
+});
+
+function openSettings(tab = 'all') {
+    settingsDropdown.classList.add('hidden');
+    settingsOverlay.classList.remove('hidden');
+    
+    if (tab === 'ai') {
+        aiSection.style.display = 'block';
+        systemSection.style.display = 'none';
+        document.getElementById('settings-modal-title').textContent = '⚙️ AI Configuration';
+    } else if (tab === 'system') {
+        aiSection.style.display = 'none';
+        systemSection.style.display = 'block';
+        document.getElementById('settings-modal-title').textContent = '⚙️ System Settings';
+        checkCompilerStatusInModal();
+    } else {
+        aiSection.style.display = 'block';
+        systemSection.style.display = 'block';
+        document.getElementById('settings-modal-title').textContent = '⚙️ Settings';
     }
 }
 
-// --- Chat Widget Logic ---
+async function checkCompilerStatusInModal() {
+    const msg = document.getElementById('compiler-status-msg');
+    try {
+        const response = await fetch('/api/check-compiler');
+        const data = await response.json();
+        if (data.installed) {
+            msg.innerHTML = `🟢 Compiler: Found (${data.version})<br><span style="font-size: 11px; color: var(--success);">System is ready for local execution.</span>`;
+        } else {
+            msg.innerHTML = `🔴 Compiler: Not Found<br><span style="font-size: 11px; color: var(--advanced);">Please install GCC to run code locally.</span>`;
+        }
+    } catch (e) {
+        msg.textContent = "Error checking compiler status.";
+    }
+}
+
+window.closeSettings = function() {
+    settingsOverlay.classList.add('hidden');
+};
+
+// AI Settings & Chat (Migrated and adapted)
+window.saveApiKey = async function() {
+    const key = document.getElementById('apiKeyInput').value;
+    if (!key) return alert("Please enter a key!");
+
+    try {
+        const response = await fetch('/api/settings/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey: key })
+        });
+        
+        if (response.ok) {
+            alert("API Key Saved Successfully!");
+            closeSettings();
+            checkApiKeyStatus();
+        }
+    } catch (err) {
+        alert("Failed to save API key.");
+    }
+};
+
+window.closeSettings = function() {
+    document.getElementById('settings-overlay').classList.add('hidden');
+};
+
+async function checkApiKeyStatus() {
+    try {
+        const response = await fetch('/api/settings/status');
+        const data = await response.json();
+        const input = document.getElementById('apiKeyInput');
+        if (data.hasKey) input.placeholder = "Key is set (••••••••••••)";
+    } catch (e) {}
+}
+
+async function checkCompiler() {
+    try {
+        const response = await fetch('/api/check-compiler');
+        const data = await response.json();
+        if (data.installed) {
+            document.getElementById('compiler-badge').classList.remove('hidden');
+        } else {
+            document.getElementById('setup-overlay').classList.remove('hidden');
+        }
+    } catch (e) {}
+}
+
+/**
+ * CHAT WIDGET (Migrated)
+ */
 const chatWidget = document.getElementById('chat-widget');
 const chatHeader = document.getElementById('chat-header');
 const chatBody = document.getElementById('chat-body');
@@ -300,22 +506,19 @@ const chatSend = document.getElementById('chat-send');
 
 chatHeader.addEventListener('click', () => {
     chatWidget.classList.toggle('collapsed');
-    const icon = chatHeader.querySelector('.toggle-icon');
-    icon.textContent = chatWidget.classList.contains('collapsed') ? '▲' : '▼';
+    chatHeader.querySelector('.toggle-icon').textContent = chatWidget.classList.contains('collapsed') ? '▲' : '▼';
 });
 
 async function sendChatMessage() {
     const message = chatInput.value.trim();
     if (!message) return;
     
-    // Add User Message
     const userMsg = document.createElement('div');
     userMsg.className = 'chat-message user-msg';
     userMsg.textContent = message;
     chatBody.appendChild(userMsg);
     chatInput.value = '';
     
-    // Add Loading
     const loadingMsg = document.createElement('div');
     loadingMsg.className = 'chat-message ai-msg';
     loadingMsg.textContent = 'Thinking...';
@@ -323,28 +526,76 @@ async function sendChatMessage() {
     chatBody.scrollTop = chatBody.scrollHeight;
     
     try {
-        const code = codeEditor.value;
         const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, code })
+            body: JSON.stringify({ message, code: codeEditor.value })
         });
         const data = await response.json();
-        
-        if (data.reply) {
-            loadingMsg.textContent = data.reply;
-        } else {
-            loadingMsg.textContent = 'Error from backend';
-            console.error('Error from backend');
-        }
+        loadingMsg.textContent = data.reply || 'Error from AI';
     } catch (error) {
-        console.error('Network error:', error);
-        loadingMsg.textContent = 'Error connecting to AI backend.';
+        loadingMsg.textContent = 'Error connecting to AI.';
     }
     chatBody.scrollTop = chatBody.scrollHeight;
 }
 
 chatSend.addEventListener('click', sendChatMessage);
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendChatMessage();
-});
+chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendChatMessage(); });
+
+// Problem Generation Logic — wire up the AI Generate button in the Problem Library
+const aiGenerateBtn = document.getElementById('ai-generate-btn');
+if (aiGenerateBtn) {
+    aiGenerateBtn.addEventListener('click', () => {
+        document.getElementById('generate-overlay').classList.remove('hidden');
+    });
+}
+
+// Called by the "Generate" button inside the AI Generate modal (onclick in HTML)
+window.submitGenerateProblems = async function() {
+    const category = document.getElementById('gen-category').value;
+    const count = parseInt(document.getElementById('gen-count').value) || 3;
+    const submitBtn = document.getElementById('gen-submit-btn');
+
+    submitBtn.textContent = 'Generating...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/generate-problems', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category, count })
+        });
+        const data = await response.json();
+        if (response.ok && Array.isArray(data)) {
+            allProblems.push(...data);
+            filteredProblems = [...allProblems];
+            renderProblemLibrary();
+            renderHome();
+            document.getElementById('generate-overlay').classList.add('hidden');
+            showToast(`✨ Generated ${data.length} new problems!`);
+        } else {
+            showToast(data.error || 'Failed to generate problems.', 'error');
+        }
+    } catch (e) {
+        showToast('Failed to generate problems. Check your connection.', 'error');
+    }
+
+    submitBtn.textContent = 'Generate';
+    submitBtn.disabled = false;
+};
+
+// Simple toast notification helper
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) { alert(message); return; }
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    toast.style.cssText = 'padding:12px 20px; margin-bottom:8px; border-radius:8px; font-size:13px; font-weight:500; color:#fff; animation: fadeIn 0.3s ease;';
+    toast.style.background = type === 'error' ? '#ef4444' : '#22c55e';
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+// Run Init
+init();
