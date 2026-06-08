@@ -3,3 +3,11 @@ dist/
 build/
 release-builds/
 .env
+*.exe
+*.o
+*.obj
+temp_*.c
+temp_*.exe
+practice_*.c
+practice_*.exe
+.DS_Store
