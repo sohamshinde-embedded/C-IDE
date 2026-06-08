@@ -596,15 +596,10 @@ wss.on('connection', (ws) => {
     });
 });
 
-// Start the server
-// In Electron, we want it to start regardless of NODE_ENV if requested
-const shouldStart = process.env.NODE_ENV !== 'production' || process.env.START_SERVER === 'true' || require.main === module;
-
-if (shouldStart) {
-    server.listen(PORT, () => {
-        console.log(`Backend server running at http://localhost:${PORT}`);
-    });
-}
+// Start the server — always listen when this file is loaded
+server.listen(PORT, () => {
+    console.log(`Backend server running at http://localhost:${PORT}`);
+});
 
 // Vercel Production: Export the app so Vercel can run it "serverless"
 module.exports = app;
