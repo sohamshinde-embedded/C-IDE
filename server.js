@@ -10,6 +10,10 @@ const { exec, execSync, execFile } = require('child_process');
 const { GoogleGenAI } = require('@google/genai');
 
 const path = require('path');
+const http = require('http');
+const WebSocket = require('ws');
+const os = require('os');
+const pty = require('node-pty');
 
 app.use(cors()); // Allow frontend to fetch data
 app.use(express.json()); // Parse JSON requests
@@ -465,12 +469,139 @@ app.post('/api/generate-problems', async (req, res) => {
     }
 });
 
+// Endpoint to save code locally for terminal execution
+app.post('/api/save-code', (req, res) => {
+    const { code } = req.body;
+    if (!code) {
+        return res.status(400).json({ error: 'No code provided' });
+    }
+    // Save to a temp directory so the project root stays clean
+    const tmpDir = os.tmpdir();
+    const filePath = path.join(tmpDir, 'cmentor_solution.c');
+    try {
+        fs.writeFileSync(filePath, code);
+        res.json({ success: true, path: filePath });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Setup HTTP and WebSocket server
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+
+wss.on('connection', (ws) => {
+    let ptyProcess = null;
+    const tmpDir = os.tmpdir();
+    const cFile = path.join(tmpDir, 'cmentor_solution.c');
+    const exeName = process.platform === 'win32' ? 'cmentor_solution.exe' : 'cmentor_solution';
+    const exePath = path.join(tmpDir, exeName);
+
+    // Cleanup helper
+    function cleanupFiles() {
+        try { if (fs.existsSync(cFile)) fs.unlinkSync(cFile); } catch (e) {}
+        // Small delay on Windows to release exe file handle
+        setTimeout(() => {
+            try { if (fs.existsSync(exePath)) fs.unlinkSync(exePath); } catch (e) {}
+        }, process.platform === 'win32' ? 200 : 0);
+    }
+
+    ws.on('message', (msg) => {
+        const msgStr = msg.toString();
+
+        // Only treat as a command if it's a valid JSON object with a "type" field
+        let parsed = null;
+        try {
+            const temp = JSON.parse(msgStr);
+            if (temp && typeof temp === 'object' && temp.type) {
+                parsed = temp;
+            }
+        } catch (e) {
+            // Not valid JSON — will be treated as stdin below
+        }
+
+        if (parsed) {
+            if (parsed.type === 'run') {
+                // Kill any previously running process
+                if (ptyProcess) {
+                    try { ptyProcess.kill(); } catch (e) {}
+                    ptyProcess = null;
+                }
+
+                // Clear terminal and show compiling status
+                ws.send('\x1b[2J\x1b[H');
+                ws.send('\x1b[33m⏳ Compiling...\x1b[0m\r\n');
+
+                // Step 1: Compile
+                try {
+                    execSync(`gcc "${cFile}" -o "${exePath}"`, {
+                        cwd: tmpDir,
+                        stdio: 'pipe'
+                    });
+                } catch (compileError) {
+                    const errText = compileError.stderr
+                        ? compileError.stderr.toString()
+                        : compileError.message;
+                    ws.send('\x1b[31m✗ Compilation Error:\x1b[0m\r\n');
+                    ws.send(errText.replace(/\n/g, '\r\n'));
+                    ws.send('\r\n');
+                    return;
+                }
+
+                ws.send('\x1b[32m✓ Compiled successfully\x1b[0m\r\n\r\n');
+
+                // Step 2: Run the executable interactively via node-pty
+                ptyProcess = pty.spawn(exePath, [], {
+                    name: 'xterm-color',
+                    cols: 80,
+                    rows: 24,
+                    cwd: tmpDir,
+                    env: process.env
+                });
+
+                ptyProcess.onData((data) => {
+                    try { ws.send(data); } catch (e) {}
+                });
+
+                ptyProcess.onExit(({ exitCode }) => {
+                    try {
+                        ws.send(`\r\n\x1b[90m--- Program exited with code ${exitCode} ---\x1b[0m\r\n`);
+                    } catch (e) {}
+                    ptyProcess = null;
+                    cleanupFiles();
+                });
+
+            } else if (parsed.type === 'kill') {
+                if (ptyProcess) {
+                    try { ptyProcess.kill(); } catch (e) {}
+                    ptyProcess = null;
+                    ws.send('\r\n\x1b[31m⚠ Process terminated\x1b[0m\r\n');
+                    cleanupFiles();
+                }
+            }
+        } else {
+            // Raw stdin input — forward to the running process
+            if (ptyProcess) {
+                ptyProcess.write(msgStr);
+            }
+        }
+    });
+
+    ws.on('close', () => {
+        if (ptyProcess) {
+            try { ptyProcess.kill(); } catch (e) {}
+            ptyProcess = null;
+        }
+        cleanupFiles();
+    });
+});
+
 // Start the server
 // In Electron, we want it to start regardless of NODE_ENV if requested
 const shouldStart = process.env.NODE_ENV !== 'production' || process.env.START_SERVER === 'true' || require.main === module;
 
 if (shouldStart) {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Backend server running at http://localhost:${PORT}`);
     });
 }

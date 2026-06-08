@@ -21,6 +21,7 @@ async function init() {
     renderHome();
     checkCompiler();
     checkApiKeyStatus();
+    setTimeout(initTerminal, 100); // init terminal after DOM is ready
 }
 
 function setupGlobalSearch() {
@@ -67,6 +68,24 @@ function setupViewNavigation() {
             }
         });
     }
+
+    // Problem tabs logic
+    const problemTabs = document.querySelectorAll('.problem-tab');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    problemTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            problemTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            tabPanels.forEach(p => p.classList.add('hidden'));
+            const tabId = tab.getAttribute('data-tab');
+            const targetPanel = document.getElementById(`tab-${tabId}`);
+            if (targetPanel) {
+                targetPanel.classList.remove('hidden');
+            }
+        });
+    });
 }
 
 function switchView(viewId) {
@@ -79,6 +98,9 @@ function switchView(viewId) {
 
     if (viewId === 'home') renderHome();
     if (viewId === 'problems') renderProblemLibrary();
+    if (viewId === 'practice' && typeof fitAddon !== 'undefined') {
+        setTimeout(() => fitAddon.fit(), 50);
+    }
 }
 
 /**
@@ -384,47 +406,144 @@ window.toggleVisibility = function(id) {
 };
 
 /**
- * COMPILER & RUN LOGIC (Migrated from original)
+ * TERMINAL & RUN LOGIC
  */
 const runBtn = document.getElementById('runBtn');
 const codeEditor = document.getElementById('code-editor');
-const stdinInput = document.getElementById('stdin-input');
-const consoleOutput = document.getElementById('console-output');
 
-runBtn.addEventListener('click', async () => {
-    const code = codeEditor.value;
-    const input = stdinInput ? stdinInput.value : '';
-    consoleOutput.textContent = 'Compiling and running...';
-    consoleOutput.style.color = 'var(--accent)';
-    
+let term;
+let fitAddon;
+let ws;
+
+function initTerminal() {
     try {
-        const response = await fetch('/api/compile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, input })
-        });
-        const data = await response.json();
-        
-        if (data.missingKey) {
-            openSettings('Please enter an API Key to use AI simulation.');
-            consoleOutput.textContent = 'AI Simulation requires an API Key.';
+        const terminalContainer = document.getElementById('terminal-container');
+        if (!terminalContainer) {
+            console.error('terminal-container not found');
             return;
         }
 
-        // Handle the /api/compile response format { success, output, error }
-        if (data.success) {
-            consoleOutput.style.color = '#4ade80';
-            consoleOutput.textContent = data.output || 'Execution completed with no output.';
-        } else {
-            consoleOutput.style.color = '#f87171';
-            consoleOutput.textContent = data.error || 'Unknown error occurred.';
-            if (data.output) {
-                consoleOutput.textContent += '\n\nPartial Output:\n' + data.output;
+        if (typeof Terminal === 'undefined') {
+            console.error('xterm.js is not loaded. Check your internet connection or CDN.');
+            showToast('Failed to load Terminal dependencies.', 'error');
+            return;
+        }
+
+        term = new Terminal({
+            theme: {
+                background: '#1a1a2e',
+                foreground: '#e0e0e0',
+                cursor: '#4ade80',
+                selectionBackground: 'rgba(74, 222, 128, 0.3)'
+            },
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: 14,
+            cursorBlink: true,
+            disableStdin: false
+        });
+        
+        fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        
+        term.open(terminalContainer);
+        
+        // Connect to backend websocket
+        ws = new WebSocket(`ws://${window.location.host}`);
+        
+        ws.onopen = () => {
+            term.writeln('\x1b[36m━━━ CMentor Console ━━━\x1b[0m');
+            term.writeln('\x1b[90mClick "Compile & Run" to execute your code.\x1b[0m');
+            term.writeln('');
+            fitAddon.fit();
+        };
+
+        ws.onmessage = (event) => {
+            term.write(event.data);
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+            term.writeln('\r\n\x1b[31m[Error] Failed to connect to backend.\x1b[0m');
+        };
+
+        // Send keystrokes as raw text (for scanf input)
+        term.onData((data) => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(data);
             }
+        });
+
+        // Ctrl+C: copy if text selected, otherwise kill running process
+        term.attachCustomKeyEventHandler((e) => {
+            if (e.ctrlKey && e.key === 'c' && e.type === 'keydown') {
+                if (term.hasSelection()) {
+                    navigator.clipboard.writeText(term.getSelection()).catch(() => {});
+                    term.clearSelection();
+                } else {
+                    // Send kill signal to stop running program
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'kill' }));
+                    }
+                }
+                return false; // prevent default
+            }
+            // Ctrl+V: paste from clipboard
+            if (e.ctrlKey && e.key === 'v' && e.type === 'keydown') {
+                navigator.clipboard.readText().then(text => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(text);
+                    }
+                }).catch(() => {});
+                return false;
+            }
+            return true;
+        });
+
+        // Auto-copy text to clipboard when selected
+        term.onSelectionChange(() => {
+            if (term.hasSelection()) {
+                navigator.clipboard.writeText(term.getSelection()).catch(() => {});
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (fitAddon && document.getElementById('practice-view').classList.contains('hidden') === false) {
+                fitAddon.fit();
+            }
+        });
+    } catch (e) {
+        console.error('initTerminal error:', e);
+        showToast('Terminal init failed: ' + e.message, 'error');
+    }
+}
+
+runBtn.addEventListener('click', async () => {
+    const code = codeEditor.value;
+    
+    try {
+        // Save the code to disk
+        const response = await fetch('/api/save-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            if (!term) initTerminal();
+            if (term && ws && ws.readyState === WebSocket.OPEN) {
+                term.focus();
+                // Send a structured "run" command — the backend handles compilation
+                ws.send(JSON.stringify({ type: 'run' }));
+            } else {
+                showToast('Terminal not connected to backend', 'error');
+            }
+        } else {
+            showToast('Failed to save code: ' + data.error, 'error');
         }
     } catch (err) {
-        consoleOutput.style.color = '#f87171';
-        consoleOutput.textContent = 'Failed to connect to backend for execution.';
+        showToast('Error: ' + err.message, 'error');
+        console.error(err);
     }
 });
 
