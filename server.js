@@ -40,13 +40,9 @@ function getApiKey() {
 }
 
 // Helper to extract text from Gemini response safely
-async function getResponseText(response) {
-    let replyText = "";
-    if (typeof response.text === 'function') {
-        replyText = await response.text();
-    } else {
-        replyText = response.text || "";
-    }
+function getResponseText(response) {
+    // @google/genai SDK exposes response.text as a property, not a function
+    let replyText = response.text || "";
 
     if (!replyText && response.candidates && response.candidates[0] && response.candidates[0].content) {
         replyText = response.candidates[0].content.parts[0].text;
@@ -59,6 +55,22 @@ app.post('/api/settings/save', (req, res) => {
     const { apiKey } = req.body;
     if (apiKey) {
         store.set('gemini_api_key', apiKey);
+        // Also persist to .env file so the key survives server restarts
+        try {
+            const envPath = path.join(__dirname, '.env');
+            let envContent = '';
+            if (fs.existsSync(envPath)) {
+                envContent = fs.readFileSync(envPath, 'utf8');
+            }
+            if (envContent.includes('GEMINI_API_KEY=')) {
+                envContent = envContent.replace(/GEMINI_API_KEY=.*/g, `GEMINI_API_KEY=${apiKey}`);
+            } else {
+                envContent += `\nGEMINI_API_KEY=${apiKey}\n`;
+            }
+            fs.writeFileSync(envPath, envContent);
+        } catch (e) {
+            console.warn('Could not persist API key to .env file:', e.message);
+        }
         res.json({ success: true, message: "API Key saved securely." });
     } else {
         res.status(400).json({ error: "No API key provided." });
@@ -156,6 +168,28 @@ const getAI = () => {
     return new GoogleGenAI({ apiKey });
 };
 
+// Retry helper for Gemini API calls with exponential backoff on 429
+async function callWithRetry(aiInstance, options, maxRetries = 2) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await aiInstance.models.generateContent(options);
+        } catch (error) {
+            if (error.status === 429 && attempt < maxRetries) {
+                // Parse retryDelay from error if available (e.g. "54s")
+                let waitMs = (attempt + 1) * 5000; // default: 5s, 10s
+                try {
+                    const match = JSON.stringify(error).match(/"retryDelay":\s*"(\d+)s"/);
+                    if (match) waitMs = Math.min(parseInt(match[1]) * 1000, 30000);
+                } catch (e) {}
+                console.log(`Rate limited (429). Retrying in ${waitMs / 1000}s (attempt ${attempt + 1}/${maxRetries})...`);
+                await new Promise(resolve => setTimeout(resolve, waitMs));
+            } else {
+                throw error;
+            }
+        }
+    }
+}
+
 async function simulateExecutionWithAI(code, res) {
     try {
         const aiInstance = getAI();
@@ -172,11 +206,11 @@ Here is the code:
 ${code}`;
 
         const response = await aiInstance.models.generateContent({
-            model: 'gemini-1.5-flash',
+            model: 'gemini-2.0-flash',
             contents: prompt,
         });
         
-        const replyText = await getResponseText(response);
+        const replyText = getResponseText(response);
         let outputText = replyText.replace(/^\`\`\`(c|text)?\n/i, '').replace(/\n\`\`\`$/, '').trim();
         return res.json({ output: "[Vercel AI Simulated Output]\n" + outputText, error: false });
     } catch (e) {
@@ -341,16 +375,34 @@ app.post('/api/chat', async (req, res) => {
     try {
         const prompt = `You are a helpful C programming tutor. The user says: "${message}".\n\nHere is their current code context:\n${code || 'No code provided.'}\n\nProvide a concise and helpful response to debug or explain the concept. Do not provide the full solution immediately, but guide them.`;
 
-        const response = await aiInstance.models.generateContent({
-            model: 'gemini-1.5-flash',
+        const response = await callWithRetry(aiInstance, {
+            model: 'gemini-2.0-flash',
             contents: prompt,
         });
 
-        const replyText = await getResponseText(response);
+        const replyText = getResponseText(response);
         res.json({ reply: replyText });
     } catch (error) {
         console.error('AI Error:', error);
-        res.json({ reply: 'Error communicating with AI. Check your API key and network.' });
+        let errorMsg = 'Error communicating with AI.';
+        if (error.status === 400 || error.message?.includes('API_KEY_INVALID')) {
+            errorMsg = 'Invalid API key. Please check your Gemini API key in Settings → AI Configuration.';
+        } else if (error.status === 403) {
+            errorMsg = 'API key does not have permission. Ensure your key is enabled for the Gemini API at https://aistudio.google.com/apikey';
+        } else if (error.status === 429) {
+            // Parse the actual wait time from Google's response
+            let waitSec = 60;
+            try {
+                const match = JSON.stringify(error).match(/"retryDelay":\s*"(\d+)s"/);
+                if (match) waitSec = parseInt(match[1]);
+            } catch (e) {}
+            errorMsg = `Rate limit exceeded (free tier). The AI will be available again in ~${waitSec} seconds. You can also upgrade to a paid Gemini API plan for higher limits.`;
+        } else if (error.status === 503 || error.message?.includes('overloaded')) {
+            errorMsg = 'The AI model is temporarily overloaded. Please try again in a few seconds.';
+        } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+            errorMsg = 'Network error — cannot reach the Gemini API. Check your internet connection.';
+        }
+        res.json({ reply: errorMsg });
     }
 });
 
@@ -385,22 +437,21 @@ app.post('/api/generate-problems', async (req, res) => {
 
         let response;
         try {
-            response = await aiInstance.models.generateContent({
-                model: 'gemini-1.5-flash',
+            response = await callWithRetry(aiInstance, {
+                model: 'gemini-2.0-flash',
                 contents: prompt,
                 config: { responseMimeType: "application/json" }
             });
         } catch (firstError) {
-            console.warn("gemini-1.5-flash failed, falling back to gemini-flash-latest...", firstError.message);
-            // Fallback to latest stable model if 503 High Demand or similar error
-            response = await aiInstance.models.generateContent({
-                model: 'gemini-flash-latest',
+            console.warn("gemini-2.0-flash failed, falling back to gemini-2.0-flash-lite...", firstError.message);
+            response = await callWithRetry(aiInstance, {
+                model: 'gemini-2.0-flash-lite',
                 contents: prompt,
                 config: { responseMimeType: "application/json" }
             });
         }
 
-        const replyText = await getResponseText(response);
+        const replyText = getResponseText(response);
 
         // Clean text and parse JSON safely
         let rawText = replyText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();

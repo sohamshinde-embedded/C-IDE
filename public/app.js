@@ -557,6 +557,24 @@ chatHeader.addEventListener('click', () => {
     chatHeader.querySelector('.toggle-icon').textContent = chatWidget.classList.contains('collapsed') ? '▲' : '▼';
 });
 
+// Basic markdown-to-HTML renderer for chat messages
+function renderMarkdown(text) {
+    let html = text
+        // Escape HTML to prevent XSS
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        // Code blocks: ```lang\n...\n```
+        .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre class="chat-code-block"><code>$2</code></pre>')
+        // Inline code: `code`
+        .replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>')
+        // Bold: **text**
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        // Italic: *text*
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        // Line breaks
+        .replace(/\n/g, '<br>');
+    return html;
+}
+
 async function sendChatMessage() {
     const message = chatInput.value.trim();
     if (!message) return;
@@ -573,6 +591,10 @@ async function sendChatMessage() {
     chatBody.appendChild(loadingMsg);
     chatBody.scrollTop = chatBody.scrollHeight;
     
+    chatSend.disabled = true;
+    chatInput.disabled = true;
+    chatSend.textContent = '...';
+
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -580,9 +602,19 @@ async function sendChatMessage() {
             body: JSON.stringify({ message, code: codeEditor.value })
         });
         const data = await response.json();
-        loadingMsg.textContent = data.reply || 'Error from AI';
+
+        if (data.missingKey) {
+            loadingMsg.innerHTML = '🔑 ' + renderMarkdown(data.reply) + '<br><button class="btn btn-small btn-primary" style="margin-top:8px;" onclick="openSettings(\'ai\')">Open Settings</button>';
+        } else {
+            loadingMsg.innerHTML = renderMarkdown(data.reply || 'Error from AI');
+        }
     } catch (error) {
-        loadingMsg.textContent = 'Error connecting to AI.';
+        loadingMsg.textContent = 'Error connecting to AI. Is the server running?';
+    } finally {
+        chatSend.disabled = false;
+        chatInput.disabled = false;
+        chatSend.textContent = 'Send';
+        chatInput.focus();
     }
     chatBody.scrollTop = chatBody.scrollHeight;
 }
