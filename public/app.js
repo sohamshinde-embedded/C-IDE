@@ -285,10 +285,13 @@ function loadProblem(prob) {
 
 function toggleSolved(id) {
     let solvedIds = getSolvedIds();
-    if (solvedIds.includes(id)) {
+    const wasSolved = solvedIds.includes(id);
+    if (wasSolved) {
         solvedIds = solvedIds.filter(i => i !== id);
     } else {
         solvedIds.push(id);
+        // Record today's date as a solve date for streak tracking
+        recordSolveDate();
     }
     localStorage.setItem('solvedProblems', JSON.stringify(solvedIds));
     
@@ -325,9 +328,54 @@ function getSolvedIds() {
     return JSON.parse(localStorage.getItem('solvedProblems')) || [];
 }
 
+/**
+ * Records today's date in localStorage so streak can be calculated.
+ * Stored as a sorted array of unique date strings (YYYY-MM-DD).
+ */
+function recordSolveDate() {
+    const today = new Date().toISOString().split('T')[0]; // e.g. "2026-06-08"
+    let dates = JSON.parse(localStorage.getItem('solveDates')) || [];
+    if (!dates.includes(today)) {
+        dates.push(today);
+        dates.sort();
+        localStorage.setItem('solveDates', JSON.stringify(dates));
+    }
+}
+
+/**
+ * Calculates the current streak: consecutive days (up to today or yesterday)
+ * on which at least one problem was solved.
+ */
 function calculateStreak() {
-    // Simple mock streak logic
-    return Math.floor(Math.random() * 5) + 1; 
+    const dates = JSON.parse(localStorage.getItem('solveDates')) || [];
+    if (dates.length === 0) return 0;
+
+    // Build a Set of date strings for O(1) lookup
+    const dateSet = new Set(dates);
+
+    // Start from today; if today isn't in the set, try yesterday
+    // (so the streak doesn't break mid-day before you've solved one)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+
+    let checkDate = new Date(today);
+    if (!dateSet.has(todayStr)) {
+        // Allow streak to persist if last solve was yesterday
+        checkDate.setDate(checkDate.getDate() - 1);
+        if (!dateSet.has(checkDate.toISOString().split('T')[0])) {
+            return 0; // No solve today or yesterday — streak is broken
+        }
+    }
+
+    // Count consecutive days backward
+    let streak = 0;
+    while (dateSet.has(checkDate.toISOString().split('T')[0])) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    return streak;
 }
 
 window.toggleVisibility = function(id) {
